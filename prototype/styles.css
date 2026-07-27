@@ -308,6 +308,35 @@ button {
   flex-wrap: wrap;
 }
 
+.batch-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #ffd6d6;
+  border-radius: 8px;
+  background: #fff8f7;
+}
+
+.batch-panel b {
+  margin-right: 10px;
+  color: var(--red);
+}
+
+.batch-panel span {
+  color: #344054;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .filter-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(280px, 1fr));
@@ -328,6 +357,7 @@ button {
   text-align: right;
   color: #293241;
   font-size: 20px;
+  white-space: nowrap;
 }
 
 .input,
@@ -644,6 +674,22 @@ tr:last-child td {
   border-bottom: 0;
 }
 
+.selection-cell {
+  width: 48px;
+  min-width: 48px;
+  text-align: center;
+}
+
+.selection-cell input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--red);
+}
+
+tr.row-selected td {
+  background: #fffafa;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
@@ -902,6 +948,15 @@ tr:last-child td {
 
   .overview-control-left,
   .overview-control-right {
+    justify-content: flex-start;
+  }
+
+  .batch-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .batch-actions {
     justify-content: flex-start;
   }
 

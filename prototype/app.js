@@ -34,6 +34,8 @@ const state = {
   filters: {},
   expiryStage: "全部",
   logsCollapsed: false,
+  batchMode: null,
+  selectedMachineIds: new Set(),
 };
 
 const machines = [
@@ -439,6 +441,8 @@ function renderOverview() {
 
 function renderPublicPool() {
   const rows = machines.filter((m) => m.owner === "公共池");
+  const selectedCount = rows.filter((m) => state.selectedMachineIds.has(m.id)).length;
+  const modeName = state.batchMode === "detect" ? "批量检测" : "批量导出";
   return `
     ${renderTitle("公共云机池列表", "仅“公共池可用”可进入客户分配候选")}
     ${renderFilters([
@@ -456,11 +460,24 @@ function renderPublicPool() {
     <div class="toolbar">
       <div class="toolbar-left">
         <button class="btn primary" data-action="openImport">导入入库</button>
-        <button class="btn" data-action="exportAll">批量导出</button>
-        <button class="btn" data-action="batchDetect">批量检测</button>
+        <button class="btn ${state.batchMode === "export" ? "primary" : ""}" data-action="enterBatchMode" data-mode="export">批量导出</button>
+        <button class="btn ${state.batchMode === "detect" ? "primary" : ""}" data-action="enterBatchMode" data-mode="detect">批量检测</button>
       </div>
       <span class="tag gray">非可用状态的分配按钮会置灰</span>
     </div>
+    ${state.batchMode ? `
+      <div class="batch-panel">
+        <div>
+          <b>${modeName}模式</b>
+          <span>已选择 ${selectedCount} 台云机。先勾选多台云机，选中后可点任意选中行的“分配”或“检测”继续处理。</span>
+        </div>
+        <div class="batch-actions">
+          <button class="btn" data-action="clearBatchSelection">清空选择</button>
+          <button class="btn" data-action="exitBatchMode">取消</button>
+          <button class="btn primary" data-action="${state.batchMode === "detect" ? "confirmBatchDetect" : "confirmBatchExport"}">${state.batchMode === "detect" ? "确认检测" : "确认导出"}</button>
+        </div>
+      </div>
+    ` : ""}
     ${renderMachineTable(rows, "publicPool")}
   `;
 }
@@ -624,17 +641,22 @@ function renderFilters(fields) {
 
 function renderMachineTable(rows, context) {
   if (!rows.length) return `<div class="empty">暂无符合条件的云机资源</div>`;
+  const selectable = context === "publicPool" && state.batchMode;
+  const selectedRows = rows.filter((m) => state.selectedMachineIds.has(m.id));
+  const allSelected = selectable && rows.length > 0 && selectedRows.length === rows.length;
   return `
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            ${selectable ? `<th class="selection-cell"><input type="checkbox" data-action="toggleAllMachineSelection" ${allSelected ? "checked" : ""} /></th>` : ""}
             <th>云机 ID</th><th>设备类型</th><th>合作方</th><th>归属</th><th>状态</th><th>客户</th><th>项目</th><th>企微账号</th><th>客户到期日</th><th>剩余天数</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
           ${rows.map((m) => `
-            <tr>
+            <tr class="${state.selectedMachineIds.has(m.id) ? "row-selected" : ""}">
+              ${selectable ? `<td class="selection-cell"><input type="checkbox" data-action="toggleMachineSelection" data-id="${m.id}" ${state.selectedMachineIds.has(m.id) ? "checked" : ""} /></td>` : ""}
               <td><button class="link-like" data-action="showMachine" data-id="${m.id}">${m.id}</button></td>
               <td>${m.type}</td>
               <td>${m.vendor}</td>
@@ -656,9 +678,12 @@ function renderMachineTable(rows, context) {
 
 function machineActions(m, context) {
   if (context === "publicPool") {
+    const batchActive = Boolean(state.batchMode);
+    const selected = state.selectedMachineIds.has(m.id);
+    const batchGate = batchActive && !selected;
     return `
-      <button class="btn ghost" data-action="allocateMachine" data-id="${m.id}" ${m.status !== "公共池可用" || !can("allocate") ? "disabled" : ""}>分配</button>
-      <button class="btn ghost" data-action="detectMachine" data-id="${m.id}" ${!["待检测", "待维护"].includes(m.status) || !can("detect") ? "disabled" : ""}>检测</button>
+      <button class="btn ghost" data-action="allocateMachine" data-id="${m.id}" ${m.status !== "公共池可用" || !can("allocate") || batchGate ? "disabled" : ""}>分配</button>
+      <button class="btn ghost" data-action="detectMachine" data-id="${m.id}" ${!["待检测", "待维护"].includes(m.status) || !can("detect") || batchGate ? "disabled" : ""}>检测</button>
       <button class="btn ghost warning" data-action="pauseMachine" data-id="${m.id}" ${!can("detect") ? "disabled" : ""}>暂停</button>
     `;
   }
@@ -961,6 +986,10 @@ document.addEventListener("click", (event) => {
 
   if (action === "switchPage") {
     state.page = target.dataset.page;
+    if (state.page !== "publicPool") {
+      state.batchMode = null;
+      state.selectedMachineIds.clear();
+    }
     render();
     return;
   }
@@ -982,6 +1011,62 @@ document.addEventListener("click", (event) => {
     document.querySelectorAll("[data-filter]").forEach((el) => (el.value = ""));
     toast("已重置", "筛选条件已清空。");
     return;
+  }
+  if (action === "enterBatchMode") {
+    state.batchMode = target.dataset.mode;
+    state.selectedMachineIds.clear();
+    render();
+    return;
+  }
+  if (action === "exitBatchMode") {
+    state.batchMode = null;
+    state.selectedMachineIds.clear();
+    render();
+    return toast("已退出批量模式", "公共云机池已恢复普通列表操作。");
+  }
+  if (action === "clearBatchSelection") {
+    state.selectedMachineIds.clear();
+    render();
+    return toast("已清空选择", "可以重新勾选需要处理的云机。");
+  }
+  if (action === "toggleMachineSelection") {
+    if (target.checked) state.selectedMachineIds.add(id);
+    else state.selectedMachineIds.delete(id);
+    render();
+    return;
+  }
+  if (action === "toggleAllMachineSelection") {
+    const rows = machines.filter((m) => m.owner === "公共池");
+    if (target.checked) rows.forEach((m) => state.selectedMachineIds.add(m.id));
+    else rows.forEach((m) => state.selectedMachineIds.delete(m.id));
+    render();
+    return;
+  }
+  if (action === "confirmBatchExport") {
+    const count = state.selectedMachineIds.size;
+    if (!count) return toast("请选择云机", "至少选择一台云机后再确认导出。");
+    addLog("PUBLIC_POOL_EXPORT", "批量导出", "-", `${count} 台云机`, "公共池勾选导出");
+    state.batchMode = null;
+    state.selectedMachineIds.clear();
+    render();
+    return toast("批量导出已生成", `已为 ${count} 台云机生成导出任务，并写入导出审计。`);
+  }
+  if (action === "confirmBatchDetect") {
+    const selected = [...state.selectedMachineIds].map(findMachine).filter(Boolean);
+    if (!selected.length) return toast("请选择云机", "至少选择一台云机后再确认检测。");
+    let processed = 0;
+    selected.forEach((m) => {
+      if (["待检测", "待维护"].includes(m.status)) {
+        m.status = "公共池可用";
+        m.note = "批量检测通过";
+        processed += 1;
+      }
+    });
+    addLog("PUBLIC_POOL_DETECT", "批量检测", `${selected.length} 台待处理`, `${processed} 台检测通过`, "公共池勾选检测");
+    state.batchMode = null;
+    state.selectedMachineIds.clear();
+    render();
+    return toast("批量检测完成", `已选择 ${selected.length} 台，其中 ${processed} 台待检测/维护资源变为公共池可用。`);
   }
   if (action === "navToast") return toast("导航提示", `${target.dataset.label} 为现有运管端菜单，本原型聚焦云机管理。`);
   if (action === "permissionApply") return toast("权限申请", "已模拟提交云机管理操作权限申请。");
