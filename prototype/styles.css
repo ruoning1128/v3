@@ -611,6 +611,64 @@ button {
   font-size: 18px;
 }
 
+.operations-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 12px 0 18px;
+}
+
+.operations-summary div {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.operations-summary b {
+  color: #111827;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.operations-summary span {
+  color: #667085;
+}
+
+.operation-section {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.operation-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.operation-head h3 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.operation-head p {
+  margin: 6px 0 0;
+  color: #667085;
+}
+
+.operation-tabs {
+  margin-bottom: 14px;
+}
+
 .flow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -950,8 +1008,14 @@ tr.row-selected td {
 
   .filter-grid,
   .kpi-grid,
-  .board-grid {
+  .board-grid,
+  .operations-summary {
     grid-template-columns: 1fr;
+  }
+
+  .operation-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .overview-control-row,

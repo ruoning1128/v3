@@ -4,9 +4,7 @@ const PAGES = [
   { id: "orders", label: "客户订购" },
   { id: "customerPool", label: "客户云机池" },
   { id: "bindings", label: "绑定管理" },
-  { id: "workorders", label: "更换/退回工单" },
-  { id: "expiry", label: "续期到期中心" },
-  { id: "config", label: "配置中心" },
+  { id: "operations", label: "运维中心" },
   { id: "logs", label: "操作日志" },
 ];
 
@@ -357,12 +355,10 @@ function renderPage() {
     orders: renderOrders,
     customerPool: renderCustomerPool,
     bindings: renderBindings,
-    workorders: renderWorkorders,
-    expiry: renderExpiry,
-    config: renderConfig,
+    operations: renderOperationsCenter,
     logs: renderLogs,
   };
-  return pages[state.page]();
+  return (pages[state.page] || renderOverview)();
 }
 
 function renderOverview() {
@@ -404,7 +400,7 @@ function renderOverview() {
         ["公共池可用", metrics.available, "点击进入公共云机池", "publicPool", "公共池可用"],
         ["客户池空闲", metrics.customerIdle, "可继续分配项目", "customerPool", "客户池空闲"],
         ["项目使用中", metrics.inProject, "客户项目占用资源", "customerPool", "项目使用中"],
-        ["续期/禁用保护", metrics.expiring, "需运营跟进", "expiry", ""],
+        ["续期/禁用保护", metrics.expiring, "需运营跟进", "operations", ""],
         ["待检测/维护", metrics.risk, "回收后检测队列", "publicPool", "待检测"],
       ].map(([name, value, note, page, status]) => `
         <div class="kpi-card">
@@ -521,7 +517,7 @@ function renderCustomerPool() {
         ["project", "项目名称", "请输入项目名称"],
         ["account", "企微账号", "请输入企微账号"],
         ["status", "保护期状态", "请选择状态", ["", "客户池空闲", "项目使用中", "续期保护期", "禁用保护期"]],
-        ["expiry", "客户到期日", "请选择到期区间"],
+        ["expiry", "客户到期日", "请选择客户到期日", null, "date"],
         ["machineId", "云机ID", "请输入云机ID"],
       ])}
     </div>
@@ -556,6 +552,67 @@ function renderBindings() {
       </div>
     </div>
     ${renderBindingTable(rows)}
+  `;
+}
+
+function renderOperationsCenter() {
+  const phases = ["全部", "正常使用期", "续期保护期", "禁用保护期", "正式到期处理"];
+  const expiryRows = machines.filter((m) => {
+    if (state.expiryStage === "全部") return m.customerExpiry !== "-";
+    if (state.expiryStage === "正常使用期") return m.customerExpiry !== "-" && m.remaining >= 0;
+    if (state.expiryStage === "正式到期处理") return m.status === "已到期处理";
+    return m.status === state.expiryStage;
+  });
+  return `
+    ${renderTitle("运维中心", "更换/退回、续期到期和配置规则合并处理")}
+    <div class="operations-summary">
+      <div><b>${workorders.length}</b><span>待跟进工单</span></div>
+      <div><b>${expiryRows.length}</b><span>当前到期筛选</span></div>
+      <div><b>${configs.filter((c) => c.enabled).length}</b><span>启用合作方</span></div>
+    </div>
+    <section class="operation-section">
+      <div class="operation-head">
+        <div>
+          <h3>更换/退回工单</h3>
+          <p>更换展示旧机回收和新机分配两个步骤；退回只处理客户交还资源。</p>
+        </div>
+        <div class="toolbar-left">
+          <button class="btn primary" data-action="openWorkorder" data-kind="更换">新建更换工单</button>
+          <button class="btn" data-action="openWorkorder" data-kind="退回">新建退回工单</button>
+        </div>
+      </div>
+      ${renderWorkorderTable()}
+    </section>
+    <section class="operation-section">
+      <div class="operation-head">
+        <div>
+          <h3>续期到期中心</h3>
+          <p>到期后 8 天续期保护，随后 3 天禁用保护，仍未续期再正式到期处理。</p>
+        </div>
+        <div class="toolbar-left">
+          <button class="btn" data-action="runExpiryJob">执行日终到期检查</button>
+          <button class="btn primary" data-action="exportAll">导出到期清单</button>
+        </div>
+      </div>
+      <nav class="phase-tabs operation-tabs">
+        ${phases.map((p) => `<button class="phase-tab ${state.expiryStage === p ? "active" : ""}" data-action="switchExpiry" data-stage="${p}">${p}</button>`).join("")}
+      </nav>
+      ${renderExpiryTable(expiryRows)}
+    </section>
+    <section class="operation-section">
+      <div class="operation-head">
+        <div>
+          <h3>配置中心</h3>
+          <p>维护合作方、分配比例、设备类型和提醒规则，配置变更只影响后续分配推荐。</p>
+        </div>
+        <div class="toolbar-left">
+          <button class="btn primary" data-action="addConfig" ${!can("config") ? "disabled" : ""}>新增合作方</button>
+          <button class="btn" data-action="resetRatio" ${!can("config") ? "disabled" : ""}>按库存均分</button>
+        </div>
+      </div>
+      ${!can("config") ? renderPermissionBanner("当前角色仅可查看配置，不能编辑或启停合作方。") : ""}
+      ${renderConfigTable()}
+    </section>
   `;
 }
 
