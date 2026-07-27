@@ -37,11 +37,12 @@ const state = {
   tablePage: {
     overview: 1,
     publicPool: 1,
+    orders: 1,
     customerPool: 1,
   },
 };
 
-const MACHINE_PAGE_SIZE = 6;
+const TABLE_PAGE_SIZE = 10;
 
 const machines = [
   {
@@ -545,7 +546,7 @@ function renderBindings() {
     <div class="compact-filters">
       ${renderFilters([
         ["account", "企微账号", "请输入企微账号"],
-        ["identity", "真人身份", "请输入真人身份"],
+        ["identity", "操作人", "请输入操作人"],
         ["app", "应用", "请选择应用", ["", "企微助手", "群运营"]],
         ["loginStatus", "登录状态", "请选择登录状态", ["", "在线", "离线", "限制登录"]],
         ["machineId", "云机ID", "请输入云机ID"],
@@ -717,11 +718,11 @@ function renderFilters(fields) {
 
 function renderMachineTable(rows, context) {
   if (!rows.length) return `<div class="empty">暂无符合条件的云机资源</div>`;
-  const totalPages = Math.max(1, Math.ceil(rows.length / MACHINE_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
   const currentPage = Math.min(state.tablePage[context] || 1, totalPages);
   state.tablePage[context] = currentPage;
-  const start = (currentPage - 1) * MACHINE_PAGE_SIZE;
-  const pageRows = rows.slice(start, start + MACHINE_PAGE_SIZE);
+  const start = (currentPage - 1) * TABLE_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + TABLE_PAGE_SIZE);
   const selectable = context === "publicPool" && state.batchMode;
   const selectedRows = pageRows.filter((m) => state.selectedMachineIds.has(m.id));
   const allSelected = selectable && pageRows.length > 0 && selectedRows.length === pageRows.length;
@@ -763,7 +764,7 @@ function renderPagination(context, total, currentPage, totalPages) {
   return `
     <div class="pagination-bar">
       <div class="pagination-info">
-        共 <b>${total}</b> 条，每页 ${MACHINE_PAGE_SIZE} 条
+        共 <b>${total}</b> 条 · 每页 ${TABLE_PAGE_SIZE} 条
       </div>
       <div class="pagination-actions">
         <button class="page-btn" data-action="changeTablePage" data-context="${context}" data-page="${Math.max(1, currentPage - 1)}" ${currentPage === 1 ? "disabled" : ""}>上一页</button>
@@ -786,10 +787,10 @@ function getMachineRowsForContext(context) {
 
 function getCurrentMachinePageRows(context) {
   const rows = getMachineRowsForContext(context);
-  const totalPages = Math.max(1, Math.ceil(rows.length / MACHINE_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
   const currentPage = Math.min(state.tablePage[context] || 1, totalPages);
-  const start = (currentPage - 1) * MACHINE_PAGE_SIZE;
-  return rows.slice(start, start + MACHINE_PAGE_SIZE);
+  const start = (currentPage - 1) * TABLE_PAGE_SIZE;
+  return rows.slice(start, start + TABLE_PAGE_SIZE);
 }
 
 function machineActions(m, context) {
@@ -814,12 +815,17 @@ function machineActions(m, context) {
 }
 
 function renderOrdersTable() {
+  const totalPages = Math.max(1, Math.ceil(orders.length / TABLE_PAGE_SIZE));
+  const currentPage = Math.min(state.tablePage.orders || 1, totalPages);
+  state.tablePage.orders = currentPage;
+  const start = (currentPage - 1) * TABLE_PAGE_SIZE;
+  const pageRows = orders.slice(start, start + TABLE_PAGE_SIZE);
   return `
     <div class="table-wrap">
       <table>
         <thead><tr><th>订购单</th><th>客户</th><th>类型</th><th>数量</th><th>租期</th><th>状态</th><th>创建人</th><th>校验/建议</th><th>操作</th></tr></thead>
         <tbody>
-          ${orders.map((o) => `
+          ${pageRows.map((o) => `
             <tr>
               <td>${o.id}</td><td>${o.customer}</td><td>${o.type}</td><td>${o.count}</td><td>${o.leaseStart} 至 ${o.leaseEnd}</td><td>${statusTag(o.status)}</td><td>${o.creator}</td><td>${o.suggestion}</td>
               <td>
@@ -832,6 +838,7 @@ function renderOrdersTable() {
         </tbody>
       </table>
     </div>
+    ${renderPagination("orders", orders.length, currentPage, totalPages)}
   `;
 }
 
@@ -839,7 +846,7 @@ function renderBindingTable(rows) {
   return `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>云机 ID</th><th>客户</th><th>企微账号</th><th>真人身份</th><th>应用</th><th>登录状态</th><th>项目</th><th>操作</th></tr></thead>
+        <thead><tr><th>云机 ID</th><th>客户</th><th>企微账号</th><th>操作人</th><th>应用</th><th>登录状态</th><th>项目</th><th>操作</th></tr></thead>
         <tbody>
           ${rows.map((m) => `
             <tr>
@@ -868,7 +875,7 @@ function renderWorkorderTable() {
               <td>${w.id}</td><td>${w.type}</td><td>${w.customer}</td><td>${w.oldMachine}</td><td>${w.newMachine}</td><td>${w.reason}</td><td>${statusTag(w.status)}</td><td>${w.result}</td>
               <td>
                 <button class="btn ghost" data-action="approveWorkorder" data-id="${w.id}" ${w.status !== "待审批" || !can("return") ? "disabled" : ""}>审批</button>
-                <button class="btn ghost warning" data-action="finishWorkorder" data-id="${w.id}" ${!can("return") ? "disabled" : ""}>完成处理</button>
+                <button class="btn ghost warning" data-action="finishWorkorder" data-id="${w.id}" ${w.status !== "待处理" || !can("return") ? "disabled" : ""}>完成处理</button>
               </td>
             </tr>
           `).join("")}
@@ -959,6 +966,7 @@ function statusTag(status) {
     "阻断": "red",
     "待审批": "gold",
     "待处理": "gold",
+    "已驳回": "red",
   }[status] || "gray";
   return `<span class="tag ${cls}">${status}</span>`;
 }
@@ -1087,7 +1095,7 @@ function showMachine(id) {
           ["上一归属", m.source],
           ["状态", m.status],
           ["客户/项目", `${m.customer} / ${m.project}`],
-          ["企微账号", `${m.account} ${m.identity !== "-" ? `(${m.identity})` : ""}`],
+          ["企微账号/操作人", `${m.account} ${m.identity !== "-" ? `(${m.identity})` : ""}`],
           ["客户到期日", m.customerExpiry],
           ["备注", m.note],
         ].map(([k, v]) => `<div class="form-row"><label>${k}</label><div>${v}</div></div>`).join("")}
@@ -1320,7 +1328,7 @@ document.addEventListener("click", (event) => {
       confirmAction: "confirmBind",
       body: modalForm([
         ["企微账号", "wx-new-027"],
-        ["真人身份", "赵晴"],
+        ["操作人", "赵晴"],
         ["应用", "企微助手"],
         ["登录状态", "在线"],
         ["原因", "项目启动前账号绑定", "textarea"],
@@ -1331,7 +1339,7 @@ document.addEventListener("click", (event) => {
     const m = findMachine(id);
     const before = m.account;
     const account = modalValue("企微账号", "wx-new-027");
-    const identity = modalValue("真人身份", "赵晴");
+    const identity = modalValue("操作人", "赵晴");
     const appName = modalValue("应用", "企微助手");
     const loginStatus = modalValue("登录状态", "在线");
     const reason = modalValue("原因", "项目启动前账号绑定");
@@ -1513,10 +1521,31 @@ document.addEventListener("click", (event) => {
   }
   if (action === "approveWorkorder") {
     const w = workorders.find((item) => item.id === id);
-    w.status = "待处理";
-    addLog(id, "工单审批", "待审批", "待处理", "审批通过");
+    return openModal({
+      id,
+      title: `审批工单 ${id}`,
+      confirmAction: "confirmApproveWorkorder",
+      body: modalForm([
+        ["工单类型", w.type],
+        ["客户", w.customer],
+        ["旧云机", w.oldMachine],
+        ["新云机", w.newMachine],
+        ["审批结论", "通过"],
+        ["审批意见", "原因充分，允许进入处理环节", "textarea"],
+      ], "审批通过后工单进入待处理；如填写“驳回”或“拒绝”，工单会结束在已驳回状态。"),
+    });
+  }
+  if (action === "confirmApproveWorkorder") {
+    const w = workorders.find((item) => item.id === id);
+    const conclusion = modalValue("审批结论", "通过");
+    const opinion = modalValue("审批意见", "原因充分，允许进入处理环节");
+    const approved = !/驳回|拒绝|不通过/.test(conclusion);
+    w.status = approved ? "待处理" : "已驳回";
+    w.result = approved ? "审批通过，待处理" : "审批驳回";
+    addLog(id, "工单审批", "待审批", w.status, opinion, approved ? "成功" : "阻断");
+    closeModal();
     render();
-    return toast("审批通过", "工单已进入处理环节。");
+    return toast(approved ? "审批通过" : "审批驳回", approved ? "工单已进入处理环节。" : "工单已结束，不再允许完成处理。");
   }
   if (action === "finishWorkorder") {
     const w = workorders.find((item) => item.id === id);
