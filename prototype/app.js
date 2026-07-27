@@ -34,7 +34,14 @@ const state = {
   logsCollapsed: false,
   batchMode: null,
   selectedMachineIds: new Set(),
+  tablePage: {
+    overview: 1,
+    publicPool: 1,
+    customerPool: 1,
+  },
 };
+
+const MACHINE_PAGE_SIZE = 6;
 
 const machines = [
   {
@@ -431,7 +438,7 @@ function renderOverview() {
         </div>
       </div>
     </div>
-    ${renderMachineTable(machines.slice(0, 6), "overview")}
+    ${renderMachineTable(machines, "overview")}
   `;
 }
 
@@ -710,20 +717,25 @@ function renderFilters(fields) {
 
 function renderMachineTable(rows, context) {
   if (!rows.length) return `<div class="empty">暂无符合条件的云机资源</div>`;
+  const totalPages = Math.max(1, Math.ceil(rows.length / MACHINE_PAGE_SIZE));
+  const currentPage = Math.min(state.tablePage[context] || 1, totalPages);
+  state.tablePage[context] = currentPage;
+  const start = (currentPage - 1) * MACHINE_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + MACHINE_PAGE_SIZE);
   const selectable = context === "publicPool" && state.batchMode;
-  const selectedRows = rows.filter((m) => state.selectedMachineIds.has(m.id));
-  const allSelected = selectable && rows.length > 0 && selectedRows.length === rows.length;
+  const selectedRows = pageRows.filter((m) => state.selectedMachineIds.has(m.id));
+  const allSelected = selectable && pageRows.length > 0 && selectedRows.length === pageRows.length;
   return `
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            ${selectable ? `<th class="selection-cell"><input type="checkbox" data-action="toggleAllMachineSelection" ${allSelected ? "checked" : ""} /></th>` : ""}
+            ${selectable ? `<th class="selection-cell"><input type="checkbox" data-action="toggleAllMachineSelection" data-context="${context}" ${allSelected ? "checked" : ""} /></th>` : ""}
             <th>云机 ID</th><th>设备类型</th><th>合作方</th><th>归属</th><th>状态</th><th>客户</th><th>项目</th><th>企微账号</th><th>客户到期日</th><th>剩余天数</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
-          ${rows.map((m) => `
+          ${pageRows.map((m) => `
             <tr class="${state.selectedMachineIds.has(m.id) ? "row-selected" : ""}">
               ${selectable ? `<td class="selection-cell"><input type="checkbox" data-action="toggleMachineSelection" data-id="${m.id}" ${state.selectedMachineIds.has(m.id) ? "checked" : ""} /></td>` : ""}
               <td><button class="link-like" data-action="showMachine" data-id="${m.id}">${m.id}</button></td>
@@ -742,7 +754,42 @@ function renderMachineTable(rows, context) {
         </tbody>
       </table>
     </div>
+    ${renderPagination(context, rows.length, currentPage, totalPages)}
   `;
+}
+
+function renderPagination(context, total, currentPage, totalPages) {
+  const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+  return `
+    <div class="pagination-bar">
+      <div class="pagination-info">
+        共 <b>${total}</b> 条，每页 ${MACHINE_PAGE_SIZE} 条
+      </div>
+      <div class="pagination-actions">
+        <button class="page-btn" data-action="changeTablePage" data-context="${context}" data-page="${Math.max(1, currentPage - 1)}" ${currentPage === 1 ? "disabled" : ""}>上一页</button>
+        <div class="page-numbers">
+          ${pages.map((page) => `
+            <button class="page-number ${page === currentPage ? "active" : ""}" data-action="changeTablePage" data-context="${context}" data-page="${page}">${page}</button>
+          `).join("")}
+        </div>
+        <button class="page-btn" data-action="changeTablePage" data-context="${context}" data-page="${Math.min(totalPages, currentPage + 1)}" ${currentPage === totalPages ? "disabled" : ""}>下一页</button>
+      </div>
+    </div>
+  `;
+}
+
+function getMachineRowsForContext(context) {
+  if (context === "publicPool") return machines.filter((m) => m.owner === "公共池");
+  if (context === "customerPool") return machines.filter((m) => ["客户云机池", "客户项目", "客户名下"].includes(m.owner));
+  return machines;
+}
+
+function getCurrentMachinePageRows(context) {
+  const rows = getMachineRowsForContext(context);
+  const totalPages = Math.max(1, Math.ceil(rows.length / MACHINE_PAGE_SIZE));
+  const currentPage = Math.min(state.tablePage[context] || 1, totalPages);
+  const start = (currentPage - 1) * MACHINE_PAGE_SIZE;
+  return rows.slice(start, start + MACHINE_PAGE_SIZE);
 }
 
 function machineActions(m, context) {
@@ -1020,6 +1067,12 @@ function modalForm(fields, warning = "") {
   `;
 }
 
+function modalValue(label, fallback = "") {
+  const rows = [...document.querySelectorAll(".modal .form-row")];
+  const row = rows.find((item) => item.querySelector("label")?.textContent.trim() === label);
+  return row?.querySelector("input, textarea, select")?.value.trim() || fallback;
+}
+
 function showMachine(id) {
   const m = findMachine(id);
   const related = logs.filter((l) => l.object === id).slice(0, 4);
@@ -1070,20 +1123,31 @@ document.addEventListener("click", (event) => {
   if (action === "metricJump") {
     state.page = target.dataset.page;
     state.filters.status = target.dataset.status;
+    state.tablePage[state.page] = 1;
     render();
     toast("已跳转", "指标已带入对应列表筛选口径。");
     return;
   }
+  if (action === "changeTablePage") {
+    state.tablePage[target.dataset.context] = Number(target.dataset.page) || 1;
+    render();
+    return;
+  }
   if (action === "closeModal") return closeModal();
-  if (action === "search") return toast("查询完成", "原型已保留筛选区和结果刷新反馈。");
+  if (action === "search") {
+    state.tablePage[state.page] = 1;
+    return toast("查询完成", "原型已保留筛选区和结果刷新反馈。");
+  }
   if (action === "resetFilters") {
     document.querySelectorAll("[data-filter]").forEach((el) => (el.value = ""));
+    state.tablePage[state.page] = 1;
     toast("已重置", "筛选条件已清空。");
     return;
   }
   if (action === "enterBatchMode") {
     state.batchMode = target.dataset.mode;
     state.selectedMachineIds.clear();
+    state.tablePage.publicPool = 1;
     render();
     return;
   }
@@ -1105,7 +1169,7 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (action === "toggleAllMachineSelection") {
-    const rows = machines.filter((m) => m.owner === "公共池");
+    const rows = getCurrentMachinePageRows(target.dataset.context);
     if (target.checked) rows.forEach((m) => state.selectedMachineIds.add(m.id));
     else rows.forEach((m) => state.selectedMachineIds.delete(m.id));
     render();
@@ -1266,17 +1330,40 @@ document.addEventListener("click", (event) => {
   if (action === "confirmBind") {
     const m = findMachine(id);
     const before = m.account;
-    Object.assign(m, { account: "wx-new-027", identity: "赵晴", app: "企微助手", loginStatus: "在线" });
-    addLog(id, "企微绑定", before, m.account, "项目启动前账号绑定");
+    const account = modalValue("企微账号", "wx-new-027");
+    const identity = modalValue("真人身份", "赵晴");
+    const appName = modalValue("应用", "企微助手");
+    const loginStatus = modalValue("登录状态", "在线");
+    const reason = modalValue("原因", "项目启动前账号绑定");
+    Object.assign(m, { account, identity, app: appName, loginStatus });
+    addLog(id, "企微绑定", before, account, reason);
     closeModal();
     render();
-    return toast("绑定成功", "企微账号绑定关系已生成。");
+    return toast("绑定成功", `${account} 已绑定到 ${id}。`);
   }
   if (action === "assignProject") {
     const m = findMachine(id);
+    return openModal({
+      id,
+      title: `分配项目 ${id}`,
+      confirmAction: "confirmAssignProject",
+      body: modalForm([
+        ["客户", m.customer],
+        ["项目名称", "私域转化 B 组"],
+        ["项目负责人", "周晓"],
+        ["预计结束日", m.customerExpiry],
+        ["分配原因", "客户池空闲资源投入项目使用", "textarea"],
+      ], `${id} 当前属于 ${m.customer}，确认后将从客户云机池转入客户项目。`),
+    });
+  }
+  if (action === "confirmAssignProject") {
+    const m = findMachine(id);
     const before = m.status;
-    Object.assign(m, { status: "项目使用中", owner: "客户项目", project: "私域转化 B 组", note: "项目中" });
-    addLog(id, "项目分配", before, "项目使用中", "项目属于同一客户");
+    const project = modalValue("项目名称", "私域转化 B 组");
+    const reason = modalValue("分配原因", "客户池空闲资源投入项目使用");
+    Object.assign(m, { status: "项目使用中", owner: "客户项目", project, note: "项目中" });
+    addLog(id, "项目分配", before, "项目使用中", reason);
+    closeModal();
     render();
     return toast("项目已分配", "云机状态已变为项目使用中。");
   }
