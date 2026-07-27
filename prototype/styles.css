@@ -441,11 +441,13 @@ button {
   margin-top: 24px;
 }
 
-.overview-filters .filter-grid {
+.overview-filters .filter-grid,
+.compact-filters .filter-grid {
   padding-bottom: 18px;
 }
 
-.overview-control-row {
+.overview-control-row,
+.compact-control-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -454,15 +456,26 @@ button {
   border-bottom: 1px solid var(--line);
 }
 
+.compact-control-row {
+  margin-bottom: 16px;
+}
+
+.compact-control-row-end {
+  justify-content: flex-end;
+}
+
 .overview-control-left,
-.overview-control-right {
+.overview-control-right,
+.compact-control-left,
+.compact-control-right {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.overview-control-right {
+.overview-control-right,
+.compact-control-right {
   justify-content: flex-end;
 }
 
@@ -941,13 +954,16 @@ tr.row-selected td {
     grid-template-columns: 1fr;
   }
 
-  .overview-control-row {
+  .overview-control-row,
+  .compact-control-row {
     align-items: stretch;
     flex-direction: column;
   }
 
   .overview-control-left,
-  .overview-control-right {
+  .overview-control-right,
+  .compact-control-left,
+  .compact-control-right {
     justify-content: flex-start;
   }
 

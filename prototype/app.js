@@ -194,7 +194,7 @@ const orders = [
     leaseStart: "2026-07-27",
     leaseEnd: "2026-09-30",
     status: "待分配确认",
-    creator: "刘祐宁",
+    creator: "刘偌宁",
     suggestion: "库存充足，推荐微联 2 台",
   },
   {
@@ -205,7 +205,7 @@ const orders = [
     leaseStart: "2026-07-28",
     leaseEnd: "2026-12-31",
     status: "库存不足",
-    creator: "刘祐宁",
+    creator: "刘偌宁",
     suggestion: "缺口 3 台，建议补采有机云云 PAD",
   },
   {
@@ -253,7 +253,7 @@ const logs = [
   logSeed("CM-202607-015", "项目分配", "王茜", "客户池空闲", "项目使用中", "绑定项目：私域转化 A 组", "成功"),
   logSeed("CM-202607-016", "到期流转", "系统", "正常使用期", "续期保护期", "客户到期未续期", "成功"),
   logSeed("CM-202607-017", "到期流转", "系统", "续期保护期", "禁用保护期", "8 天保护期结束", "成功"),
-  logSeed("ORD-202607-102", "库存校验", "刘祐宁", "草稿", "库存不足", "可用云 PAD 不足", "阻断"),
+  logSeed("ORD-202607-102", "库存校验", "刘偌宁", "草稿", "库存不足", "可用云 PAD 不足", "阻断"),
 ];
 
 function logSeed(object, action, operator, before, after, reason, result) {
@@ -445,25 +445,27 @@ function renderPublicPool() {
   const modeName = state.batchMode === "detect" ? "批量检测" : "批量导出";
   return `
     ${renderTitle("公共云机池列表", "仅“公共池可用”可进入客户分配候选")}
-    ${renderFilters([
-      ["machineId", "云机ID", "请输入云机ID"],
-      ["type", "设备类型", "请选择设备类型", ["", "云手机", "云 PAD"]],
-      ["vendor", "合作方", "请选择合作方", ["", "微联", "有机云"]],
-      ["status", "资源状态", "请选择资源状态", ["", "公共池可用", "待检测", "待维护", "暂停使用"]],
-      ["supplierExpiry", "合作方到期", "请选择到期区间", ["", "90 天内", "180 天内", "一年内"]],
-      ["source", "入库来源", "请输入采购单/批次"],
-    ])}
-    <div class="action-row">
-      <button class="btn" data-action="resetFilters">重置</button>
-      <button class="btn primary" data-action="search">搜索</button>
+    <div class="compact-filters">
+      ${renderFilters([
+        ["machineId", "云机ID", "请输入云机ID"],
+        ["type", "设备类型", "请选择设备类型", ["", "云手机", "云 PAD"]],
+        ["vendor", "合作方", "请选择合作方", ["", "微联", "有机云"]],
+        ["status", "资源状态", "请选择资源状态", ["", "公共池可用", "待检测", "待维护", "暂停使用"]],
+        ["supplierExpiry", "合作方到期", "请选择到期区间", ["", "90 天内", "180 天内", "一年内"]],
+        ["source", "入库来源", "请输入采购单/批次"],
+      ])}
     </div>
-    <div class="toolbar">
-      <div class="toolbar-left">
+    <div class="compact-control-row">
+      <div class="compact-control-left">
         <button class="btn primary" data-action="openImport">导入入库</button>
         <button class="btn ${state.batchMode === "export" ? "primary" : ""}" data-action="enterBatchMode" data-mode="export">批量导出</button>
         <button class="btn ${state.batchMode === "detect" ? "primary" : ""}" data-action="enterBatchMode" data-mode="detect">批量检测</button>
       </div>
-      <span class="tag gray">非可用状态的分配按钮会置灰</span>
+      <div class="compact-control-right">
+        <span class="tag gray">非可用状态的分配按钮会置灰</span>
+        <button class="btn" data-action="resetFilters">重置</button>
+        <button class="btn primary" data-action="search">搜索</button>
+      </div>
     </div>
     ${state.batchMode ? `
       <div class="batch-panel">
@@ -485,22 +487,24 @@ function renderPublicPool() {
 function renderOrders() {
   return `
     ${renderTitle("客户订购列表", "库存校验通过后才能确认分配")}
-    ${renderFilters([
-      ["customer", "客户名称", "请输入客户名称"],
-      ["orderStatus", "订购状态", "请选择状态", ["", "草稿", "待库存校验", "待分配确认", "库存不足", "已分配", "已取消"]],
-      ["type", "设备类型", "请选择设备类型", ["", "云手机", "云 PAD"]],
-      ["creator", "创建人", "请输入创建人"],
-      ["leaseStart", "开始时间", "请选择开始时间"],
-      ["leaseEnd", "结束时间", "请选择结束时间"],
-    ])}
-    <div class="action-row">
-      <button class="btn" data-action="resetFilters">重置</button>
-      <button class="btn primary" data-action="search">搜索</button>
+    <div class="compact-filters">
+      ${renderFilters([
+        ["customer", "客户名称", "请输入客户名称"],
+        ["orderStatus", "订购状态", "请选择状态", ["", "草稿", "待库存校验", "待分配确认", "库存不足", "已分配", "已取消"]],
+        ["type", "设备类型", "请选择设备类型", ["", "云手机", "云 PAD"]],
+        ["creator", "创建人", "请输入创建人"],
+        ["leaseStart", "开始时间", "请选择开始时间", null, "date"],
+        ["leaseEnd", "结束时间", "请选择结束时间", null, "date"],
+      ])}
     </div>
-    <div class="toolbar">
-      <div class="toolbar-left">
+    <div class="compact-control-row">
+      <div class="compact-control-left">
         <button class="btn primary" data-action="openOrder">新增订购</button>
         <button class="btn" data-action="exportAll">导出订购</button>
+      </div>
+      <div class="compact-control-right">
+        <button class="btn" data-action="resetFilters">重置</button>
+        <button class="btn primary" data-action="search">搜索</button>
       </div>
     </div>
     ${renderOrdersTable()}
@@ -511,17 +515,21 @@ function renderCustomerPool() {
   const rows = machines.filter((m) => ["客户云机池", "客户项目", "客户名下"].includes(m.owner));
   return `
     ${renderTitle("客户云机池", "项目回收只回客户池；退回才进入公共池待检测")}
-    ${renderFilters([
-      ["customer", "客户ID/名称", "请输入客户ID或名称"],
-      ["project", "项目名称", "请输入项目名称"],
-      ["account", "企微账号", "请输入企微账号"],
-      ["status", "保护期状态", "请选择状态", ["", "客户池空闲", "项目使用中", "续期保护期", "禁用保护期"]],
-      ["expiry", "客户到期日", "请选择到期区间"],
-      ["machineId", "云机ID", "请输入云机ID"],
-    ])}
-    <div class="action-row">
-      <button class="btn" data-action="resetFilters">重置</button>
-      <button class="btn primary" data-action="search">搜索</button>
+    <div class="compact-filters">
+      ${renderFilters([
+        ["customer", "客户ID/名称", "请输入客户ID或名称"],
+        ["project", "项目名称", "请输入项目名称"],
+        ["account", "企微账号", "请输入企微账号"],
+        ["status", "保护期状态", "请选择状态", ["", "客户池空闲", "项目使用中", "续期保护期", "禁用保护期"]],
+        ["expiry", "客户到期日", "请选择到期区间"],
+        ["machineId", "云机ID", "请输入云机ID"],
+      ])}
+    </div>
+    <div class="compact-control-row compact-control-row-end">
+      <div class="compact-control-right">
+        <button class="btn" data-action="resetFilters">重置</button>
+        <button class="btn primary" data-action="search">搜索</button>
+      </div>
     </div>
     ${renderMachineTable(rows, "customerPool")}
   `;
@@ -531,17 +539,21 @@ function renderBindings() {
   const rows = machines.filter((m) => m.account !== "-");
   return `
     ${renderTitle("绑定管理", "企微账号同一时间只能绑定一台云机")}
-    ${renderFilters([
-      ["account", "企微账号", "请输入企微账号"],
-      ["identity", "真人身份", "请输入真人身份"],
-      ["app", "应用", "请选择应用", ["", "企微助手", "群运营"]],
-      ["loginStatus", "登录状态", "请选择登录状态", ["", "在线", "离线", "限制登录"]],
-      ["machineId", "云机ID", "请输入云机ID"],
-      ["customer", "客户名称", "请输入客户名称"],
-    ])}
-    <div class="action-row">
-      <button class="btn" data-action="resetFilters">重置</button>
-      <button class="btn primary" data-action="search">搜索</button>
+    <div class="compact-filters">
+      ${renderFilters([
+        ["account", "企微账号", "请输入企微账号"],
+        ["identity", "真人身份", "请输入真人身份"],
+        ["app", "应用", "请选择应用", ["", "企微助手", "群运营"]],
+        ["loginStatus", "登录状态", "请选择登录状态", ["", "在线", "离线", "限制登录"]],
+        ["machineId", "云机ID", "请输入云机ID"],
+        ["customer", "客户名称", "请输入客户名称"],
+      ])}
+    </div>
+    <div class="compact-control-row compact-control-row-end">
+      <div class="compact-control-right">
+        <button class="btn" data-action="resetFilters">重置</button>
+        <button class="btn primary" data-action="search">搜索</button>
+      </div>
     </div>
     ${renderBindingTable(rows)}
   `;
@@ -629,10 +641,10 @@ function renderTitle(title, meta) {
 function renderFilters(fields) {
   return `
     <div class="filter-grid">
-      ${fields.map(([key, label, placeholder, options]) => `
+      ${fields.map(([key, label, placeholder, options, type]) => `
         <div class="filter-field">
           <label>${label}</label>
-          ${options ? `<select class="select" data-filter="${key}">${options.map((v) => `<option value="${v}">${v || placeholder}</option>`).join("")}</select>` : `<input class="input" data-filter="${key}" placeholder="${placeholder}" />`}
+          ${options ? `<select class="select" data-filter="${key}">${options.map((v) => `<option value="${v}">${v || placeholder}</option>`).join("")}</select>` : `<input class="input" type="${type === "date" ? "date" : "text"}" data-filter="${key}" placeholder="${placeholder}" />`}
         </div>
       `).join("")}
     </div>
@@ -890,7 +902,7 @@ function addLog(object, action, before, after, reason, result = "成功") {
     id: `LOG-${String(logs.length + 1001).padStart(4, "0")}`,
     object,
     action,
-    operator: state.role === "只读/审计" ? "审计用户" : "刘祐宁",
+    operator: state.role === "只读/审计" ? "审计用户" : "刘偌宁",
     time: "2026-07-27 14:56",
     before,
     after,
@@ -1124,7 +1136,7 @@ document.addEventListener("click", (event) => {
       leaseStart: "2026-07-28",
       leaseEnd: "2026-12-31",
       status: "待库存校验",
-      creator: "刘祐宁",
+      creator: "刘偌宁",
       suggestion: "待校验",
     };
     orders.unshift(order);
