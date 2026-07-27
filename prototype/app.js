@@ -367,34 +367,35 @@ function renderOverview() {
   const metrics = getMetrics();
   return `
     ${renderTitle("数据明细", "数据更新时间：2026-07-27 14:56")}
-    ${renderFilters([
-      ["vendor", "合作方", "请选择合作方", ["", "微联", "有机云"]],
-      ["type", "设备类型", "请选择设备类型", ["", "云手机", "云 PAD"]],
-      ["status", "状态", "请选择状态", ["", ...statusList()]],
-      ["customer", "客户名称", "请输入客户名称"],
-      ["project", "项目名称", "请输入项目名称"],
-      ["expiry", "到期区间", "请选择到期区间", ["", "7 天内", "30 天内", "已到期"]],
-    ])}
-    <div class="action-row">
-      <button class="btn" data-action="resetFilters">重置</button>
-      <button class="btn primary" data-action="search">搜索</button>
+    <div class="overview-filters">
+      ${renderFilters([
+        ["vendor", "合作方", "请选择合作方", ["", "微联", "有机云"]],
+        ["type", "设备类型", "请选择设备类型", ["", "云手机", "云 PAD"]],
+        ["status", "状态", "请选择状态", ["", ...statusList()]],
+        ["customer", "客户名称", "请输入客户名称"],
+        ["project", "项目名称", "请输入项目名称"],
+        ["expiry", "到期区间", "请选择到期区间", ["", "7 天内", "30 天内", "已到期"]],
+      ])}
     </div>
-    <div class="toolbar">
-      <div class="toolbar-left">
+    <div class="overview-control-row">
+      <div class="overview-control-left">
         <button class="btn primary" data-action="exportAll">下载全部</button>
         <button class="btn" data-action="openImport">采购入库</button>
         <button class="btn" data-action="openOrder">新增订购</button>
       </div>
-      <div class="toolbar-right"><span class="tag red">高风险操作需二次确认并填写原因</span></div>
+      <div class="overview-control-right">
+        <span class="tag red">高风险操作需二次确认并填写原因</span>
+        <button class="btn" data-action="resetFilters">重置</button>
+        <button class="btn primary" data-action="search">搜索</button>
+      </div>
     </div>
     <div class="summary-strip">
-      <div class="summary-art"></div>
-      <div class="summary-label">汇总结果：</div>
-      <div>公共池可用 <span class="summary-num">${metrics.available}</span></div>
-      <div>客户池空闲 <span class="summary-num">${metrics.customerIdle}</span></div>
-      <div>项目使用中 <span class="summary-num">${metrics.inProject}</span></div>
-      <div>待检测/维护 <span class="summary-num">${metrics.risk}</span></div>
-      <div>保护期资源 <span class="summary-num">${metrics.expiring}</span></div>
+      <div class="summary-label">汇总结果</div>
+      <div class="summary-item"><span>公共池可用</span><b class="summary-num">${metrics.available}</b></div>
+      <div class="summary-item"><span>客户池空闲</span><b class="summary-num">${metrics.customerIdle}</b></div>
+      <div class="summary-item"><span>项目使用中</span><b class="summary-num">${metrics.inProject}</b></div>
+      <div class="summary-item warning"><span>保护期资源</span><b class="summary-num">${metrics.expiring}</b></div>
+      <div class="summary-item danger"><span>待检测/维护</span><b class="summary-num">${metrics.risk}</b></div>
     </div>
     <div class="kpi-grid">
       ${[
