@@ -1,0 +1,21 @@
+# Python/cache output
+__pycache__/
+*.py[cod]
+
+# Local rendering and conversion scratch files
+tmp_render/
+render_prd/
+
+# Office lock/temp files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Browser profiles generated while testing the prototype
+prototype/chrome-profile*/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
