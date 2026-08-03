@@ -1,11 +1,5 @@
 const PAGES = [
-  { id: "overview", label: "云机概览" },
-  { id: "publicPool", label: "公共云机池" },
-  { id: "orders", label: "客户订购" },
-  { id: "customerPool", label: "客户云机池" },
-  { id: "bindings", label: "绑定管理" },
-  { id: "operations", label: "运维中心" },
-  { id: "logs", label: "操作日志" },
+  { id: "lifecycleRecords", label: "云机流转查询" },
 ];
 
 const NAV = [
@@ -25,24 +19,32 @@ const NAV = [
 ];
 
 const state = {
-  page: "overview",
+  page: "lifecycleRecords",
   role: "运营管理员",
   toastId: 1,
   modal: null,
   filters: {},
   expiryStage: "全部",
+  lifecycleAction: "全部",
+  lifecycleExportMode: false,
+  datePickerOpen: false,
+  datePickerSelecting: "start",
+  datePickerStartBase: "2026-08-01",
+  datePickerEndBase: "2026-09-01",
+  selectedLifecycleIds: new Set(),
   logsCollapsed: false,
   batchMode: null,
   selectedMachineIds: new Set(),
   tablePage: {
     overview: 1,
+    lifecycleRecords: 1,
     publicPool: 1,
     orders: 1,
     customerPool: 1,
   },
 };
 
-const TABLE_PAGE_SIZE = 10;
+const TABLE_PAGE_SIZE = 20;
 
 const machines = [
   {
@@ -262,6 +264,399 @@ const logs = [
   logSeed("ORD-202607-102", "库存校验", "刘偌宁", "草稿", "库存不足", "可用云 PAD 不足", "阻断"),
 ];
 
+const lifecycleFields = [
+  "变更时间",
+  "操作来源",
+  "操作人",
+  "客户ID",
+  "客户名称",
+  "资源编号",
+  "设备ID",
+  "设备来源",
+  "设备分类",
+  "自动化服务商",
+  "替换后资源编号",
+  "替换后设备ID",
+  "替换后设备分类",
+  "替换后自动化服务商",
+  "更新前项目ID",
+  "更新前项目名称",
+  "更新后项目ID",
+  "更新后项目名称",
+  "云机订购时间",
+  "订购订单号",
+  "T客户订购到期时间",
+  "T+8续费保护截止日",
+  "T+11禁用保护截止日",
+];
+
+const lifecycleFieldLabels = {
+  T客户订购到期时间: "客户订购到期时间",
+  "T+8续费保护截止日": "续费保护截止日",
+  "T+11禁用保护截止日": "禁用保护截止日",
+};
+
+const lifecycleMatrix = [
+  {
+    action: "运营采购",
+    source: "运管端",
+    note: "采购入库时沉淀资源基础字段和云机可用周期。",
+    required: ["资源编号", "设备ID", "操作人", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "云机订购时间"],
+  },
+  {
+    action: "客户分配",
+    source: "面客端/运管端",
+    note: "客户分配后需要记录客户、项目、到期保护日期。",
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+  },
+  {
+    action: "客户回收",
+    source: "面客端/运管端",
+    note: "客户侧回收解除项目归属，更新后项目信息展示为空。",
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+  },
+  {
+    action: "客户订购",
+    source: "面客端",
+    note: "订购记录关注订单号、客户订购到期日和后续保护节点。",
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日", "订购订单号"],
+  },
+  {
+    action: "运管替换",
+    source: "运管端",
+    note: "替换需保留旧机和新机信息，方便追溯旧机与新机。",
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "替换后资源编号", "替换后设备ID", "替换后设备分类", "替换后自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+  },
+  {
+    action: "运管回收",
+    source: "运管端",
+    note: "运管回收保留客户归属、保护期日期和回收时的资源信息。",
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+  },
+  {
+    action: "到期回收",
+    source: "系统",
+    note: "禁用保护截止日后一天由系统自动回收。",
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+  },
+];
+
+const lifecycleRecords = [
+  {
+    id: "TR-202607-001",
+    action: "运营采购",
+    stage: "入库完成",
+    fields: {
+      资源编号: "RS-BAIDU-00081",
+      设备ID: "CM-202607-001",
+      操作人: "刘偌宁",
+      变更时间: "2026-07-27 10:20",
+      操作来源: "运管端",
+      设备来源: "百度云",
+      设备分类: "云手机",
+      自动化服务商: "微联",
+      云机订购时间: "2026-07-27",
+    },
+  },
+  {
+    id: "TR-202607-002",
+    action: "客户订购",
+    stage: "待分配确认",
+    fields: {
+      资源编号: "RS-YJY-00925",
+      设备ID: "CM-202607-015",
+      操作人: "wanghainan3",
+      客户名称: "上海明川贸易",
+      变更时间: "2026-07-27 11:36",
+      操作来源: "面客端",
+      设备来源: "京东云",
+      设备分类: "PAD",
+      自动化服务商: "有机云",
+      T客户订购到期时间: "2026-08-08",
+      "T+8续费保护截止日": "2026-08-16",
+      "T+11禁用保护截止日": "2026-08-19",
+      订购订单号: "870583189163237376",
+    },
+  },
+  {
+    id: "TR-202607-003",
+    action: "客户分配",
+    stage: "项目使用中",
+    fields: {
+      资源编号: "RS-WL-01014",
+      设备ID: "CM-202607-014",
+      操作人: "赵晴",
+      客户名称: "杭州星河科技",
+      变更时间: "2026-07-27 14:20",
+      操作来源: "运管端",
+      设备来源: "客户",
+      设备分类: "云手机",
+      自动化服务商: "微联",
+      更新后项目名称: "品类项目演示0710授权",
+      T客户订购到期时间: "2026-09-30",
+      "T+8续费保护截止日": "2026-10-08",
+      "T+11禁用保护截止日": "2026-10-11",
+    },
+  },
+  {
+    id: "TR-202607-004",
+    action: "客户回收",
+    stage: "客户池空闲",
+    fields: {
+      资源编号: "RS-WL-01016",
+      设备ID: "CM-202607-016",
+      操作人: "王茜",
+      客户名称: "成都青桥教育",
+      变更时间: "2026-07-27 15:42",
+      操作来源: "面客端",
+      设备来源: "蜂助手",
+      设备分类: "云手机",
+      自动化服务商: "微联",
+      T客户订购到期时间: "2026-07-23",
+      "T+8续费保护截止日": "2026-07-31",
+      "T+11禁用保护截止日": "2026-08-03",
+    },
+  },
+  {
+    id: "TR-202607-005",
+    action: "运管替换",
+    stage: "旧机待检测",
+    fields: {
+      资源编号: "RS-QK-00217",
+      设备ID: "CM-202607-017",
+      操作人: "gongziqian1",
+      客户名称: "广州嘉禾餐饮",
+      变更时间: "2026-07-27 16:08",
+      操作来源: "运管端",
+      设备来源: "群控厂商",
+      设备分类: "PAD",
+      自动化服务商: "有机云",
+      T客户订购到期时间: "2026-07-15",
+      "T+8续费保护截止日": "2026-07-23",
+      "T+11禁用保护截止日": "2026-07-26",
+    },
+  },
+  {
+    id: "TR-202607-006",
+    action: "运管回收",
+    stage: "公共池待检测",
+    fields: {
+      资源编号: "RS-JDY-00631",
+      设备ID: "CM-202607-018",
+      操作人: "zhaoliquan",
+      客户名称: "深圳云启互动",
+      变更时间: "2026-07-27 17:19",
+      操作来源: "运管端",
+      设备来源: "京东云",
+      设备分类: "云手机",
+      自动化服务商: "微联",
+      T客户订购到期时间: "2026-12-31",
+      "T+8续费保护截止日": "2027-01-08",
+      "T+11禁用保护截止日": "2027-01-11",
+    },
+  },
+  {
+    id: "TR-202607-031",
+    action: "到期回收",
+    stage: "到期回收完成",
+    fields: {
+      资源编号: "RS-WL-01060",
+      设备ID: "CM-202607-043",
+      操作人: "系统",
+      客户名称: "宿迁达润信息科技有限公司",
+      变更时间: "2026-08-04 09:30",
+      操作来源: "系统",
+      设备来源: "客户",
+      设备分类: "云手机",
+      自动化服务商: "微联",
+      T客户订购到期时间: "2026-07-23",
+      "T+8续费保护截止日": "2026-07-31",
+      "T+11禁用保护截止日": "2026-08-03",
+    },
+  },
+];
+
+const moreLifecycleRecords = [
+  ["TR-202607-007", "运营采购", "入库完成", "RS-HBS-00082", "CM-202607-019", "liuruoning", "北京东世纪贸易", "2026-07-28 09:12", "运管端", "蜂助手", "自持", "云手机", "微联", "2026-07-28", "2027-07-27", "", "", "", "2027-07-27", "2027-08-04", "2027-08-07", "", ""],
+  ["TR-202607-008", "客户分配", "项目使用中", "RS-JDY-00632", "CM-202607-020", "zhaoliquan", "北京东世纪贸易", "2026-07-28 10:05", "运管端", "京东云", "客户", "PAD", "有机云", "2026-07-28", "2026-10-31", "P-BJ-202607", "演示测试项目-品类2607", "是", "2026-10-31", "2026-11-08", "2026-11-11", "", ""],
+  ["TR-202607-009", "客户回收", "客户池空闲", "RS-WL-01020", "CM-202607-021", "wanghainan3", "宿迁达润信息科技有限公司", "2026-07-28 10:42", "面客端", "客户", "客户", "云手机", "微联", "2026-06-01", "2026-09-01", "", "", "否", "2026-09-01", "2026-09-09", "2026-09-12", "", ""],
+  ["TR-202607-010", "客户订购", "待分配确认", "RS-YJY-00931", "CM-202607-022", "yanghainan3", "上海呆呆食品有限公司", "2026-07-28 11:18", "面客端", "京东云", "客户", "PAD", "有机云", "2026-07-28", "2026-12-31", "", "", "", "2026-12-31", "2027-01-08", "2027-01-11", "869524648075747328", ""],
+  ["TR-202607-011", "运管替换", "旧机待检测", "RS-QK-00224", "CM-202607-023", "xiongtiantia", "深圳京东健康有限公司", "2026-07-28 12:09", "运管端", "群控厂商", "客户", "云手机", "微联", "2026-05-02", "2026-11-30", "", "", "是", "2026-11-30", "2026-12-08", "2026-12-11", "", "客户反馈设备卡顿，替换新机"],
+  ["TR-202607-012", "运管回收", "公共池待检测", "RS-JDY-00640", "CM-202607-024", "gongziqian1", "深圳京东健康有限公司", "2026-07-28 13:24", "运管端", "京东云", "客户", "PAD", "有机云", "2026-04-12", "2026-09-15", "", "", "否", "2026-09-15", "2026-09-23", "2026-09-26", "", "项目结束后统一回收"],
+  ["TR-202607-013", "运营采购", "入库完成", "RS-BAIDU-00088", "CM-202607-025", "zhaoliquan", "无字号131", "2026-07-28 14:03", "运管端", "百度云", "自持", "PAD", "有机云", "2026-07-28", "2027-06-30", "", "", "", "2027-06-30", "2027-07-08", "2027-07-11", "", ""],
+  ["TR-202607-014", "客户分配", "项目使用中", "RS-WL-01026", "CM-202607-026", "gongziqian1", "京东橡胶有限公司", "2026-07-28 14:47", "运管端", "蜂助手", "客户", "云手机", "微联", "2026-07-01", "2026-10-15", "P-XJ-202607", "私域承接二期", "是", "2026-10-15", "2026-10-23", "2026-10-26", "", ""],
+  ["TR-202607-015", "客户回收", "客户池空闲", "RS-WL-01027", "CM-202607-027", "tianyan", "天津星海贸易", "2026-07-28 15:19", "面客端", "客户", "客户", "云手机", "微联", "2026-05-20", "2026-08-20", "", "", "否", "2026-08-20", "2026-08-28", "2026-08-31", "", ""],
+  ["TR-202607-016", "客户订购", "待库存校验", "RS-YJY-00942", "CM-202607-028", "liuruoning", "成都青桥教育", "2026-07-28 15:50", "面客端", "京东云", "客户", "PAD", "有机云", "2026-07-28", "2026-11-30", "", "", "", "2026-11-30", "2026-12-08", "2026-12-11", "869463905074700288", ""],
+  ["TR-202607-017", "运管替换", "旧机待检测", "RS-HBS-00102", "CM-202607-029", "zhaoliquan", "广州嘉禾餐饮", "2026-07-28 16:17", "运管端", "蜂助手", "客户", "云手机", "微联", "2026-06-15", "2026-09-30", "", "", "是", "2026-09-30", "2026-10-08", "2026-10-11", "", "旧机摄像头异常"],
+  ["TR-202607-018", "运管回收", "公共池待检测", "RS-QK-00245", "CM-202607-030", "wanghainan3", "上海明川贸易", "2026-07-28 16:44", "运管端", "群控厂商", "客户", "PAD", "有机云", "2026-05-09", "2026-08-08", "", "", "否", "2026-08-08", "2026-08-16", "2026-08-19", "", "客户确认不再使用"],
+  ["TR-202607-019", "运营采购", "入库完成", "RS-JDY-00652", "CM-202607-031", "gongziqian1", "深圳云启互动", "2026-07-29 09:31", "运管端", "京东云", "自持", "云手机", "微联", "2026-07-29", "2027-07-28", "", "", "", "2027-07-28", "2027-08-05", "2027-08-08", "", ""],
+  ["TR-202607-020", "客户分配", "项目使用中", "RS-HBS-00111", "CM-202607-032", "xiongtiantia", "广西京东晴川电子商务有限公司", "2026-07-29 10:06", "运管端", "蜂助手", "客户", "云手机", "微联", "2026-07-10", "2026-12-29", "P-HN-202607", "测试账号迁移更换项目", "是", "2026-12-29", "2027-01-06", "2027-01-09", "", ""],
+  ["TR-202607-021", "客户回收", "客户池空闲", "RS-JDY-00658", "CM-202607-033", "zhaoliquan", "无字号131", "2026-07-29 10:33", "面客端", "京东云", "客户", "PAD", "有机云", "2026-04-20", "2026-07-31", "", "", "否", "2026-07-31", "2026-08-08", "2026-08-11", "", ""],
+  ["TR-202607-022", "客户订购", "待分配确认", "RS-WL-01039", "CM-202607-034", "wanghainan3", "西安港实业有限公司", "2026-07-29 11:22", "面客端", "客户", "客户", "云手机", "微联", "2026-07-29", "2026-10-31", "", "", "", "2026-10-31", "2026-11-08", "2026-11-11", "869459034502094849", ""],
+  ["TR-202607-023", "运管替换", "旧机待检测", "RS-WL-01042", "CM-202607-035", "gongziqian1", "宜春测试企业服务有限公司", "2026-07-29 13:12", "运管端", "客户", "客户", "云手机", "微联", "2026-06-01", "2026-09-01", "", "", "是", "2026-09-01", "2026-09-09", "2026-09-12", "", "登录环境异常，换机处理"],
+  ["TR-202607-024", "运管回收", "公共池待检测", "RS-BAIDU-00103", "CM-202607-036", "liuruoning", "北京东世纪贸易", "2026-07-29 13:55", "运管端", "百度云", "客户", "PAD", "有态度", "2026-03-01", "2026-09-30", "", "", "否", "2026-09-30", "2026-10-08", "2026-10-11", "", "客户合同终止"],
+  ["TR-202607-025", "运营采购", "入库完成", "RS-YJY-00960", "CM-202607-037", "xiongtiantia", "天津星海贸易", "2026-07-29 14:40", "运管端", "京东云", "自持", "PAD", "有机云", "2026-07-29", "2027-06-29", "", "", "", "2027-06-29", "2027-07-07", "2027-07-10", "", ""],
+  ["TR-202607-026", "客户分配", "项目使用中", "RS-QK-00261", "CM-202607-038", "zhaoliquan", "广州嘉禾餐饮", "2026-07-29 15:08", "运管端", "群控厂商", "客户", "PAD", "有机云", "2026-07-01", "2026-10-01", "P-GZ-202607", "门店会员召回", "是", "2026-10-01", "2026-10-09", "2026-10-12", "", ""],
+  ["TR-202607-027", "客户回收", "客户池空闲", "RS-HBS-00122", "CM-202607-039", "wanghainan3", "深圳云启互动", "2026-07-29 16:11", "面客端", "蜂助手", "客户", "云手机", "微联", "2026-05-01", "2026-12-31", "", "", "否", "2026-12-31", "2027-01-08", "2027-01-11", "", ""],
+  ["TR-202607-028", "客户订购", "库存不足", "RS-BAIDU-00108", "CM-202607-040", "gongziqian1", "深圳京东健康有限公司", "2026-07-29 16:44", "面客端", "百度云", "客户", "云手机", "微联", "2026-07-29", "2026-12-25", "", "", "", "2026-12-25", "2027-01-02", "2027-01-05", "862890528797122560", ""],
+  ["TR-202607-029", "运管替换", "旧机待检测", "RS-JDY-00680", "CM-202607-041", "xiongtiantia", "成都青桥教育", "2026-07-29 17:02", "运管端", "京东云", "客户", "云手机", "有态度", "2026-04-18", "2026-09-18", "", "", "是", "2026-09-18", "2026-09-26", "2026-09-29", "", "设备维护失败后替换"],
+  ["TR-202607-030", "运管回收", "公共池待检测", "RS-WL-01055", "CM-202607-042", "liuruoning", "京东橡胶有限公司", "2026-07-29 17:36", "运管端", "客户", "客户", "云手机", "微联", "2026-02-10", "2026-10-15", "", "", "否", "2026-10-15", "2026-10-23", "2026-10-26", "", "运营侧批量回收"],
+];
+
+lifecycleRecords.push(...moreLifecycleRecords.map(([id, action, stage, resourceNo, deviceId, operator, customerName, changeTime, source, deviceSource, deviceType, deviceCategory, provider, orderTime, expiryTime, projectCode, projectName, allocated, customerExpiry, renewProtect, disableProtect, orderNo, reason]) => ({
+  id,
+  action,
+  stage,
+  fields: Object.fromEntries(lifecycleFields.map((field) => [field, {
+    资源编号: resourceNo,
+    设备ID: deviceId,
+    操作人: operator,
+    客户名称: customerName,
+    变更时间: changeTime,
+    操作来源: source,
+    设备来源: deviceSource,
+    设备分类: deviceCategory,
+    自动化服务商: provider,
+    云机订购时间: orderTime,
+    更新后项目名称: projectName,
+    T客户订购到期时间: customerExpiry,
+    "T+8续费保护截止日": renewProtect,
+    "T+11禁用保护截止日": disableProtect,
+    订购订单号: orderNo,
+  }[field]]).filter(([field, value]) => lifecycleRule(action).required.includes(field) && value)),
+})));
+
+lifecycleRecords.forEach(normalizeLifecycleRecord);
+
+function normalizeLifecycleRecord(record, index) {
+  const fields = record.fields;
+  const project = lifecycleProjectSnapshot(record, index);
+  fields.资源编号 = lifecycleResourceNo(index);
+  fields.设备ID = lifecycleDeviceId(index);
+  fields.操作人 = lifecycleOperator(record, index);
+  fields.客户ID = fields.客户名称 ? lifecycleCustomerId(fields.客户名称) : "";
+  fields.更新前项目ID = project.beforeId;
+  fields.更新前项目名称 = project.beforeName;
+  fields.更新后项目ID = project.afterId;
+  fields.更新后项目名称 = project.afterName;
+  fields.替换后资源编号 = record.action === "运管替换" ? lifecycleResourceNo(index + 31) : "";
+  fields.替换后设备ID = record.action === "运管替换" ? lifecycleDeviceId(index + 31) : "";
+  fields.替换后设备分类 = record.action === "运管替换" ? alternateDeviceCategory(index) : "";
+  fields.替换后自动化服务商 = record.action === "运管替换" ? alternateProvider(index) : "";
+  if (fields.订购订单号) fields.订购订单号 = lifecycleOrderNo(index);
+}
+
+function lifecycleResourceNo(index) {
+  return `YSJ${2026079699 - index}`;
+}
+
+function lifecycleDeviceId(index) {
+  const batchNo = 10201022004 - Math.floor(index / 4) * 3;
+  const suffix = String(3 - (index % 4)).padStart(2, "0");
+  return `VHLC${batchNo}_${suffix}`;
+}
+
+function lifecycleOperator(record, index) {
+  const accountOperators = [
+    "liuruoning.1",
+    "xiongtiantian1",
+    "zhouyukang.7",
+    "liqianyao",
+    "fangyouxia1",
+    "fangnan",
+    "lizhuoheng.2002",
+  ];
+  const customerOperators = [
+    "北京方博资元信息科技有限公司",
+    "宿迁达润信息科技有限公司",
+    "上海呆呆食品有限公司",
+    "广西京东晴川电子商务有限公司",
+    "西安港实业有限公司",
+    "北京东世纪贸易",
+    "上海明川贸易",
+    "杭州星河科技",
+    "成都青桥教育",
+    "广州嘉禾餐饮",
+    "深圳云启互动",
+    "海南鑫汇成商贸有限公司",
+    "深圳京东健康有限公司",
+    "京东橡胶有限公司",
+  ];
+
+  if (record.action === "到期回收") return "自动回收";
+  if (record.action.startsWith("客户")) {
+    return record.fields.客户名称 || customerOperators[index % customerOperators.length];
+  }
+  return accountOperators[index % accountOperators.length];
+}
+
+function alternateDeviceCategory(index) {
+  return index % 2 === 0 ? "云手机" : "PAD";
+}
+
+function alternateProvider(index) {
+  return ["微联", "有机云", "有态度"][index % 3];
+}
+
+function lifecycleOrderNo(index) {
+  const orderNos = [
+    "870583189163237376",
+    "869563830781370369",
+    "869557579146092544",
+    "869524648075747328",
+    "869478872154923008",
+    "869463905074700288",
+    "869459034502094849",
+    "869406711889289218",
+    "862890528797122560",
+    "862890331534811137",
+  ];
+  return orderNos[index % orderNos.length];
+}
+
+function lifecycleCustomerId(customerName) {
+  const customerIds = {
+    上海明川贸易: "B12420474",
+    杭州星河科技: "B51960910",
+    成都青桥教育: "B86224909",
+    广州嘉禾餐饮: "B73304429",
+    深圳云启互动: "B90511569",
+    北京东世纪贸易: "B89316083",
+    宜春测试企业服务有限公司: "B68758875",
+    海南鑫汇成商贸有限公司: "B72536554",
+    深圳京东健康有限公司: "B96758867",
+    无字号131: "B11184339",
+    京东橡胶有限公司: "B31875429",
+    天津星海贸易: "B54890631",
+    宿迁达润信息科技有限公司: "B77204618",
+    上海呆呆食品有限公司: "B60495127",
+    广西京东晴川电子商务有限公司: "B83720461",
+    西安港实业有限公司: "B45901836",
+  };
+  return customerIds[customerName] || "B20487566";
+}
+
+function lifecycleProjectSnapshot(record, index) {
+  const fields = record.fields;
+  if (record.action !== "客户分配" && record.action !== "客户回收" && record.action !== "到期回收") {
+    return { beforeId: "", beforeName: "", afterId: "", afterName: "" };
+  }
+
+  const projectSeeds = [
+    ["P00019846", "演示测试项目-品类2607", "P00020412", "品类项目演示0710授权"],
+    ["P00020537", "测试创建项目", "P00021786", "测试账号迁移更换项目"],
+    ["P00021904", "品牌测试项目", "P00023170", "品牌测试香米"],
+    ["P00023758", "三星手机演示项目", "P00024893", "方大的项目-测试sku标签授权"],
+    ["P00025341", "演示测试项目-品牌管理", "P00026058", "品类项目演示0710客户验证"],
+  ];
+  const seed = projectSeeds[index % projectSeeds.length];
+  const beforeId = seed[0];
+  const beforeName = seed[1];
+  const afterId = record.action === "客户回收" || record.action === "到期回收" ? "" : seed[2];
+  const afterName = record.action === "客户回收" || record.action === "到期回收" ? "" : seed[3];
+  return { beforeId, beforeName, afterId, afterName };
+}
+
 function logSeed(object, action, operator, before, after, reason, result) {
   return {
     id: `LOG-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -301,9 +696,8 @@ function render() {
       ${renderSidebar()}
       <main class="main-scroll">
         <div class="content">
-          <div class="breadcrumb">云机管理&nbsp;&nbsp;/&nbsp;&nbsp;<b>${pageLabel(state.page)}</b></div>
+          <div class="breadcrumb">企微管理&nbsp;&nbsp;/&nbsp;&nbsp;<b>${pageLabel(state.page)}</b></div>
           <section class="panel">
-            ${renderTabs()}
             ${renderPage()}
           </section>
         </div>
@@ -331,42 +725,32 @@ function renderTopbar() {
 
 function renderSidebar() {
   const icons = ["user", "money", "doc", "task", "folder", "group", "chat", "chat", "search", "chart", "chart", "link", "chat"];
+  const wecomItems = ["手机分配路由", "手机资源", "账号授权", "企微账号", "获客链接", "加粉任务", "云机流转查询"];
   return `
     <aside class="sidebar">
       ${NAV.map((label, index) => `
-        <button class="menu-item ${label === "数据看板" ? "" : ""}" data-action="navToast" data-label="${label}">
+        <button class="menu-item ${label === "企微管理" ? "active" : ""}" data-action="${label === "企微管理" ? "navToast" : "navToast"}" data-label="${label}">
           ${icon(icons[index])}<span class="menu-label">${label}</span><span class="chevron"></span>
         </button>
+        ${label === "企微管理" ? `
+          <div class="submenu wecom-submenu">
+            ${wecomItems.map((item) => item === "云机流转查询"
+              ? `<button class="submenu-item active" data-action="switchPage" data-page="lifecycleRecords">${item}</button>`
+              : `<button class="submenu-item" data-action="navToast" data-label="${item}">${item}</button>`
+            ).join("")}
+          </div>
+        ` : ""}
       `).join("")}
-      <button class="menu-item active" data-action="switchPage" data-page="overview">
-        ${icon("cloud")}<span class="menu-label">云机管理</span><span class="chevron"></span>
-      </button>
-      <div class="submenu">
-        ${PAGES.map((p) => `<button class="submenu-item ${state.page === p.id ? "active" : ""}" data-action="switchPage" data-page="${p.id}">${p.label}</button>`).join("")}
-      </div>
     </aside>
   `;
 }
 
 function renderTabs() {
-  return `
-    <nav class="module-tabs" aria-label="云机管理模块">
-      ${PAGES.map((p) => `<button class="module-tab ${state.page === p.id ? "active" : ""}" data-action="switchPage" data-page="${p.id}">${p.label}</button>`).join("")}
-    </nav>
-  `;
+  return "";
 }
 
 function renderPage() {
-  const pages = {
-    overview: renderOverview,
-    publicPool: renderPublicPool,
-    orders: renderOrders,
-    customerPool: renderCustomerPool,
-    bindings: renderBindings,
-    operations: renderOperationsCenter,
-    logs: renderLogs,
-  };
-  return (pages[state.page] || renderOverview)();
+  return renderLifecycleRecords();
 }
 
 function renderOverview() {
@@ -440,6 +824,83 @@ function renderOverview() {
       </div>
     </div>
     ${renderMachineTable(machines, "overview")}
+  `;
+}
+
+function renderLifecycleRecords() {
+  const actions = ["全部", ...lifecycleMatrix.map((item) => item.action)];
+  const rows = getFilteredLifecycleRecords();
+  const selectedCount = rows.filter((record) => state.selectedLifecycleIds.has(record.id)).length;
+
+  return `
+    <div class="section-title single-title"><h2>云机状态流转查询</h2></div>
+    <div class="compact-filters lifecycle-filters">
+      ${renderFilters([
+        ["actionType", "操作类型", "请选择操作类型", actions],
+        ["deviceId", "设备ID", "请输入设备ID"],
+        ["customerId", "客户ID", "请输入客户ID"],
+        ["customer", "客户名称", "请输入客户名称"],
+        ["projectId", "项目ID", "请输入项目ID"],
+        ["projectName", "项目名称", "请输入项目名称"],
+        ["source", "操作来源", "请选择操作来源", ["", "面客端", "运管端", "系统"]],
+        ["operator", "操作人", "请输入操作人"],
+        ["dateRange", "日期", "", null, "dateRange"],
+      ])}
+    </div>
+    <div class="compact-control-row">
+      <div class="compact-control-left">
+        <button class="btn primary" data-action="enterLifecycleExport">批量导出</button>
+        ${state.lifecycleExportMode ? `<span class="selection-tip">已选择 ${selectedCount} 条</span>` : ""}
+      </div>
+      <div class="compact-control-right">
+        ${state.lifecycleExportMode ? `
+          <button class="btn" data-action="exitLifecycleExport">取消选择</button>
+          <button class="btn primary" data-action="confirmLifecycleExport">确认导出</button>
+        ` : ""}
+        <button class="btn" data-action="resetFilters">重置</button>
+        <button class="btn primary" data-action="search">搜索</button>
+      </div>
+    </div>
+    ${renderLifecycleTable(rows)}
+  `;
+}
+
+function getFilteredLifecycleRecords() {
+  const filters = state.filters;
+  return lifecycleRecords.filter((record) => {
+    const fields = record.fields;
+    if (state.lifecycleAction !== "全部" && record.action !== state.lifecycleAction) return false;
+    if (filters.deviceId && !String(fields.设备ID || "").includes(filters.deviceId)) return false;
+    if (filters.customerId && !String(fields.客户ID || "").includes(filters.customerId)) return false;
+    if (filters.customer && !String(fields.客户名称 || "").includes(filters.customer)) return false;
+    if (filters.projectId && ![fields.更新前项目ID, fields.更新后项目ID].some((value) => String(value || "").includes(filters.projectId))) return false;
+    if (filters.projectName && ![fields.更新前项目名称, fields.更新后项目名称].some((value) => String(value || "").includes(filters.projectName))) return false;
+    if (filters.source && fields.操作来源 !== filters.source) return false;
+    if (filters.operator && !String(fields.操作人 || "").includes(filters.operator)) return false;
+    const date = String(fields.变更时间 || "").slice(0, 10);
+    if (filters.from && date < filters.from) return false;
+    if (filters.to && date > filters.to) return false;
+    return true;
+  });
+}
+
+function renderFieldRuleCard(item) {
+  const optionalCount = lifecycleFields.length - item.required.length;
+  return `
+    <article class="field-rule-card">
+      <div class="field-rule-head">
+        <div>
+          <h3>${item.action}</h3>
+          <span>${item.source}</span>
+        </div>
+        <strong>${item.required.length}/${lifecycleFields.length}</strong>
+      </div>
+      <p>${item.note}</p>
+      <div class="field-chips">
+        ${item.required.map((field) => `<span class="field-chip required">${field}</span>`).join("")}
+      </div>
+      <div class="field-rule-foot">${optionalCount} 个字段按矩阵留空</div>
+    </article>
   `;
 }
 
@@ -706,14 +1167,131 @@ function renderTitle(title, meta) {
 function renderFilters(fields) {
   return `
     <div class="filter-grid">
-      ${fields.map(([key, label, placeholder, options, type]) => `
-        <div class="filter-field">
-          <label>${label}</label>
-          ${options ? `<select class="select" data-filter="${key}">${options.map((v) => `<option value="${v}">${v || placeholder}</option>`).join("")}</select>` : `<input class="input" type="${type === "date" ? "date" : "text"}" data-filter="${key}" placeholder="${placeholder}" />`}
-        </div>
-      `).join("")}
+      ${fields.map(([key, label, placeholder, options, type]) => {
+        const value = key === "actionType" ? state.lifecycleAction : state.filters[key] || "";
+        if (type === "dateRange") {
+          return `
+            <div class="filter-field date-range-field">
+              <label>${label}</label>
+              ${renderDateRangePicker()}
+            </div>
+          `;
+        }
+        return `
+          <div class="filter-field">
+            <label>${label}</label>
+            ${options ? `<select class="select" data-filter="${key}">${options.map((v) => `<option value="${v}" ${v === value ? "selected" : ""}>${v || placeholder}</option>`).join("")}</select>` : `<input class="input" type="${type === "date" ? "date" : "text"}" data-filter="${key}" placeholder="${placeholder}" value="${value}" />`}
+          </div>
+        `;
+      }).join("")}
     </div>
   `;
+}
+
+function renderDateRangePicker() {
+  const from = state.filters.from || "";
+  const to = state.filters.to || "";
+  return `
+    <div class="date-range-shell">
+      <button class="date-range-trigger ${state.datePickerOpen ? "active" : ""}" data-action="toggleDateRange" type="button">
+        <span class="${from ? "filled" : ""}">${from || "开始日期"}</span>
+        <em>~</em>
+        <span class="${to ? "filled" : ""}">${to || "结束日期"}</span>
+        <i aria-hidden="true"></i>
+      </button>
+      ${state.datePickerOpen ? `
+        <div class="date-picker-popover">
+          <div class="date-picker-hint">请选择起止日期</div>
+          <div class="date-picker-months">
+            ${renderCalendarMonth(state.datePickerStartBase, "start")}
+            ${renderCalendarMonth(state.datePickerEndBase, "end")}
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function renderCalendarMonth(monthDate, panel) {
+  const base = parseDate(monthDate);
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  const first = new Date(year, month, 1);
+  const start = addDays(first, -first.getDay());
+  const days = Array.from({ length: 42 }, (_, index) => addDays(start, index));
+  const labels = ["日", "一", "二", "三", "四", "五", "六"];
+  const startControls = `
+    <button data-action="shiftDateRangePanel" data-panel="start" data-unit="year" data-offset="-1" type="button">«</button>
+    <button data-action="shiftDateRangePanel" data-panel="start" data-unit="month" data-offset="-1" type="button">‹</button>
+  `;
+  const endControls = `
+    <button data-action="shiftDateRangePanel" data-panel="end" data-unit="month" data-offset="1" type="button">›</button>
+    <button data-action="shiftDateRangePanel" data-panel="end" data-unit="year" data-offset="1" type="button">»</button>
+  `;
+  return `
+    <div class="calendar-month">
+      <div class="calendar-title ${panel}">
+        <span class="calendar-controls">${panel === "start" ? startControls : ""}</span>
+        <strong>${year} 年 ${month + 1} 月</strong>
+        <span class="calendar-controls">${panel === "end" ? endControls : ""}</span>
+      </div>
+      <div class="calendar-week">${labels.map((label) => `<span>${label}</span>`).join("")}</div>
+      <div class="calendar-grid">
+        ${days.map((day) => {
+          const date = formatDate(day);
+          const outside = day.getMonth() !== month;
+          const selected = date === state.filters.from || date === state.filters.to;
+          const inRange = isDateInRange(date, state.filters.from, state.filters.to);
+          return `<button class="${outside ? "outside" : ""} ${selected ? "selected" : ""} ${inRange ? "in-range" : ""}" data-action="pickDateRangeDate" data-date="${date}" type="button">${day.getDate()}</button>`;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function parseDate(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date, months) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function isDateInRange(date, from, to) {
+  return Boolean(from && to && date > from && date < to);
+}
+
+function pickDateRangeDate(date) {
+  const from = state.filters.from;
+  const to = state.filters.to;
+  if (!from || to || state.datePickerSelecting === "start") {
+    state.filters.from = date;
+    state.filters.to = "";
+    state.datePickerSelecting = "end";
+    state.datePickerOpen = true;
+  } else if (date < from) {
+    state.filters.from = date;
+    state.filters.to = from;
+    state.datePickerSelecting = "start";
+    state.datePickerOpen = false;
+  } else {
+    state.filters.to = date;
+    state.datePickerSelecting = "start";
+    state.datePickerOpen = false;
+  }
+  state.tablePage.lifecycleRecords = 1;
+  state.selectedLifecycleIds.clear();
 }
 
 function renderMachineTable(rows, context) {
@@ -757,6 +1335,102 @@ function renderMachineTable(rows, context) {
     </div>
     ${renderPagination(context, rows.length, currentPage, totalPages)}
   `;
+}
+
+function renderLifecycleTable(rows) {
+  if (!rows.length) return `<div class="empty">暂无符合条件的状态流转记录</div>`;
+  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  const currentPage = Math.min(state.tablePage.lifecycleRecords || 1, totalPages);
+  state.tablePage.lifecycleRecords = currentPage;
+  const start = (currentPage - 1) * TABLE_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + TABLE_PAGE_SIZE);
+  const selectable = state.lifecycleExportMode;
+  const selectedRows = pageRows.filter((record) => state.selectedLifecycleIds.has(record.id));
+  const allSelected = selectable && pageRows.length > 0 && selectedRows.length === pageRows.length;
+  return `
+    <div class="table-wrap lifecycle-table ${selectable ? "export-mode" : ""}">
+      <table>
+        <thead>
+          <tr>
+            ${selectable ? `<th class="sticky-col sticky-select selection-cell"><input type="checkbox" data-action="toggleAllLifecycleSelection" ${allSelected ? "checked" : ""} /></th>` : ""}
+            <th class="sticky-col sticky-action">操作类型</th>
+            ${lifecycleFields.map((field) => `<th>${fieldLabel(field)}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${pageRows.map((record) => {
+            return `
+              <tr class="${state.selectedLifecycleIds.has(record.id) ? "row-selected" : ""}">
+                ${selectable ? `<td class="sticky-col sticky-select selection-cell"><input type="checkbox" data-action="toggleLifecycleSelection" data-id="${record.id}" ${state.selectedLifecycleIds.has(record.id) ? "checked" : ""} /></td>` : ""}
+                <td class="sticky-col sticky-action">${actionTag(record.action)}</td>
+                ${lifecycleFields.map((field) => `<td>${renderLifecycleCell(record, field)}</td>`).join("")}
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+    ${renderPagination("lifecycleRecords", rows.length, currentPage, totalPages)}
+  `;
+}
+
+function getCurrentLifecyclePageRows() {
+  const rows = getFilteredLifecycleRecords();
+  const totalPages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  const currentPage = Math.min(state.tablePage.lifecycleRecords || 1, totalPages);
+  const start = (currentPage - 1) * TABLE_PAGE_SIZE;
+  return rows.slice(start, start + TABLE_PAGE_SIZE);
+}
+
+function fieldValue(record, field) {
+  return record.fields[field] || "--";
+}
+
+function renderLifecycleCell(record, field) {
+  const value = fieldValue(record, field);
+  const truncatable = ["操作人", "客户名称", "更新前项目名称", "更新后项目名称"].includes(field);
+  if (field === "操作人" && isErpOperator(value)) return escapeHtml(value);
+  if (!truncatable || value === "--" || value.length <= 10) return escapeHtml(value);
+  return `<span class="truncated-cell" data-full-text="${escapeHtml(value)}">${escapeHtml(value.slice(0, 10))}...</span>`;
+}
+
+function isErpOperator(value) {
+  return /^[a-z][a-z0-9.]*$/i.test(value);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function fieldLabel(field) {
+  return lifecycleFieldLabels[field] || field;
+}
+
+function actionTag(action) {
+  return `<span class="action-tag ${actionClass(action)}">${action}</span>`;
+}
+
+function actionClass(action) {
+  return action === "到期回收" ? "expiry-recycle" : "support";
+}
+
+function lifecycleRule(action) {
+  return lifecycleMatrix.find((item) => item.action === action) || lifecycleMatrix[0];
+}
+
+function lifecycleCompletion(record) {
+  const required = lifecycleRule(record.action).required;
+  const filled = required.filter((field) => Boolean(record.fields[field])).length;
+  return {
+    filled,
+    total: required.length,
+    percent: Math.round((filled / required.length) * 100),
+  };
 }
 
 function renderPagination(context, total, currentPage, totalPages) {
@@ -955,6 +1629,10 @@ function statusTag(status) {
     "待维护": "red",
     "暂停使用": "gray",
     "已分配": "green",
+    "入库完成": "green",
+    "项目使用中": "blue",
+    "公共池待检测": "gold",
+    "旧机待检测": "gold",
     "待分配确认": "gold",
     "库存不足": "red",
     "已取消": "gray",
@@ -986,7 +1664,7 @@ function statusList() {
 }
 
 function pageLabel(id) {
-  return PAGES.find((p) => p.id === id)?.label || "云机管理";
+  return PAGES.find((p) => p.id === id)?.label || "企微管理";
 }
 
 function can(action) {
@@ -1108,12 +1786,70 @@ function showMachine(id) {
   });
 }
 
+function showLifecycleRecord(id) {
+  const record = lifecycleRecords.find((item) => item.id === id);
+  if (!record) return toast("记录不存在", "未找到对应状态流转记录。");
+  const rule = lifecycleRule(record.action);
+  const completion = lifecycleCompletion(record);
+  openModal({
+    id,
+    title: `${record.id} 字段明细`,
+    confirmAction: "closeModal",
+    body: `
+      <div class="detail-summary">
+        <div><span>操作类型</span><b>${record.action}</b></div>
+        <div><span>必填完整度</span><b>${completion.filled}/${completion.total}</b></div>
+        <div><span>当前状态</span><b>${record.stage}</b></div>
+      </div>
+      <div class="field-detail-grid">
+        ${lifecycleFields.map((field) => {
+          const required = rule.required.includes(field);
+          const value = fieldValue(record, field);
+          return `
+            <div class="field-detail ${required ? "required" : ""}">
+              <label>${fieldLabel(field)}${required ? "<em>必填</em>" : "<em>留空</em>"}</label>
+              <span>${value}</span>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `,
+  });
+}
+
 document.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action]");
-  if (!target) return;
+  if (!target) {
+    if (state.datePickerOpen && !event.target.closest(".date-range-field")) {
+      state.datePickerOpen = false;
+      render();
+    }
+    return;
+  }
   const action = target.dataset.action;
   const id = target.dataset.id;
 
+  if (action === "toggleDateRange") {
+    state.datePickerOpen = !state.datePickerOpen;
+    state.datePickerSelecting = state.filters.from && !state.filters.to ? "end" : "start";
+    render();
+    return;
+  }
+  if (action === "shiftDateRangePanel") {
+    const key = target.dataset.panel === "end" ? "datePickerEndBase" : "datePickerStartBase";
+    const offset = Number(target.dataset.offset) || 0;
+    const unit = target.dataset.unit;
+    const current = parseDate(state[key]);
+    state[key] = formatDate(unit === "year" ? addMonths(current, offset * 12) : addMonths(current, offset));
+    state.datePickerOpen = true;
+    render();
+    return;
+  }
+  if (action === "pickDateRangeDate") {
+    pickDateRangeDate(target.dataset.date);
+    render();
+    return;
+  }
   if (action === "switchPage") {
     state.page = target.dataset.page;
     if (state.page !== "publicPool") {
@@ -1128,6 +1864,14 @@ document.addEventListener("click", (event) => {
     render();
     return;
   }
+  if (action === "switchLifecycleAction") {
+    state.lifecycleAction = target.dataset.stage;
+    state.tablePage.lifecycleRecords = 1;
+    render();
+    return;
+  }
+  if (action === "showMachine") return showMachine(id);
+  if (action === "showLifecycleRecord") return showLifecycleRecord(id);
   if (action === "metricJump") {
     state.page = target.dataset.page;
     state.filters.status = target.dataset.status;
@@ -1144,13 +1888,55 @@ document.addEventListener("click", (event) => {
   if (action === "closeModal") return closeModal();
   if (action === "search") {
     state.tablePage[state.page] = 1;
-    return toast("查询完成", "原型已保留筛选区和结果刷新反馈。");
+    state.selectedLifecycleIds.clear();
+    render();
+    return toast("查询完成", "列表已按当前筛选条件刷新。");
   }
   if (action === "resetFilters") {
     document.querySelectorAll("[data-filter]").forEach((el) => (el.value = ""));
+    state.filters = {};
+    if (state.page === "lifecycleRecords") state.lifecycleAction = "全部";
+    state.lifecycleExportMode = false;
+    state.datePickerOpen = false;
+    state.datePickerSelecting = "start";
+    state.selectedLifecycleIds.clear();
     state.tablePage[state.page] = 1;
     toast("已重置", "筛选条件已清空。");
     return;
+  }
+  if (action === "enterLifecycleExport") {
+    state.lifecycleExportMode = true;
+    state.selectedLifecycleIds.clear();
+    render();
+    return toast("请选择导出条目", "勾选需要导出的状态流转记录后点击确认导出。");
+  }
+  if (action === "exitLifecycleExport") {
+    state.lifecycleExportMode = false;
+    state.selectedLifecycleIds.clear();
+    render();
+    return toast("已取消选择", "状态流转列表已恢复普通浏览模式。");
+  }
+  if (action === "toggleLifecycleSelection") {
+    if (target.checked) state.selectedLifecycleIds.add(id);
+    else state.selectedLifecycleIds.delete(id);
+    render();
+    return;
+  }
+  if (action === "toggleAllLifecycleSelection") {
+    const rows = getCurrentLifecyclePageRows();
+    if (target.checked) rows.forEach((record) => state.selectedLifecycleIds.add(record.id));
+    else rows.forEach((record) => state.selectedLifecycleIds.delete(record.id));
+    render();
+    return;
+  }
+  if (action === "confirmLifecycleExport") {
+    const count = state.selectedLifecycleIds.size;
+    if (!count) return toast("请选择记录", "至少选择一条状态流转记录后再确认导出。");
+    addLog("LIFECYCLE_EXPORT", "批量导出", "-", `${count} 条状态流转记录`, "状态流转勾选导出");
+    state.lifecycleExportMode = false;
+    state.selectedLifecycleIds.clear();
+    render();
+    return toast("批量导出已生成", `已为 ${count} 条状态流转记录生成导出任务。`);
   }
   if (action === "enterBatchMode") {
     state.batchMode = target.dataset.mode;
@@ -1209,8 +1995,9 @@ document.addEventListener("click", (event) => {
     render();
     return toast("批量检测完成", `已选择 ${selected.length} 台，其中 ${processed} 台待检测/维护资源变为公共池可用。`);
   }
-  if (action === "navToast") return toast("导航提示", `${target.dataset.label} 为现有运管端菜单，本原型聚焦云机管理。`);
+  if (action === "navToast") return toast("导航提示", `${target.dataset.label} 为现有运管端菜单，本原型聚焦企微管理状态流转。`);
   if (action === "permissionApply") return toast("权限申请", "已模拟提交云机管理操作权限申请。");
+  if (action === "copyFieldSchema") return toast("字段口径已复制", "已模拟复制当前动作的必填字段清单，可粘贴到 PRD 或评审记录。");
   if (action === "downloadCenter" || action === "exportAll") {
     addLog("EXPORT", "导出", "-", state.page, "用户导出当前数据范围");
     render();
@@ -1577,12 +2364,108 @@ document.addEventListener("click", (event) => {
   }
 });
 
+let tableDrag = null;
+
+document.addEventListener("pointerdown", (event) => {
+  const wrap = event.target.closest(".lifecycle-table");
+  if (!wrap || event.target.closest("button, input, select, textarea, a")) return;
+  tableDrag = {
+    wrap,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    scrollLeft: wrap.scrollLeft,
+  };
+  wrap.classList.add("dragging");
+  wrap.setPointerCapture?.(event.pointerId);
+});
+
+document.addEventListener("pointermove", (event) => {
+  if (!tableDrag) return;
+  const deltaX = event.clientX - tableDrag.startX;
+  tableDrag.wrap.scrollLeft = tableDrag.scrollLeft - deltaX;
+  event.preventDefault();
+});
+
+function stopTableDrag() {
+  if (!tableDrag) return;
+  tableDrag.wrap.classList.remove("dragging");
+  tableDrag = null;
+}
+
+document.addEventListener("pointerup", stopTableDrag);
+document.addEventListener("pointercancel", stopTableDrag);
+
+let tooltipHideTimer = null;
+
+function ensureCellTooltip() {
+  let tooltip = document.getElementById("cell-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.id = "cell-tooltip";
+    tooltip.className = "cell-tooltip";
+    document.body.appendChild(tooltip);
+    tooltip.addEventListener("mouseenter", () => clearTimeout(tooltipHideTimer));
+    tooltip.addEventListener("mouseleave", hideCellTooltip);
+  }
+  return tooltip;
+}
+
+function showCellTooltip(target) {
+  const tooltip = ensureCellTooltip();
+  tooltip.textContent = target.dataset.fullText || "";
+  const rect = target.getBoundingClientRect();
+  tooltip.style.left = `${Math.min(rect.left, window.innerWidth - 260)}px`;
+  tooltip.style.top = `${rect.top - 42}px`;
+  tooltip.classList.add("show");
+  clearTimeout(tooltipHideTimer);
+}
+
+function hideCellTooltip() {
+  tooltipHideTimer = setTimeout(() => {
+    document.getElementById("cell-tooltip")?.classList.remove("show");
+  }, 180);
+}
+
+document.addEventListener("mouseover", (event) => {
+  const target = event.target.closest(".truncated-cell");
+  if (!target) return;
+  showCellTooltip(target);
+});
+
+document.addEventListener("mouseout", (event) => {
+  const target = event.target.closest(".truncated-cell");
+  if (!target) return;
+  const next = event.relatedTarget;
+  if (next?.closest?.("#cell-tooltip")) return;
+  hideCellTooltip();
+});
+
 document.addEventListener("change", (event) => {
   if (event.target.dataset.action === "roleChange") {
     state.role = event.target.value;
     render();
     toast("角色已切换", `当前角色：${state.role}。无操作权限的按钮会置灰或隐藏。`);
   }
+  if (event.target.dataset.filter === "actionType") {
+    state.lifecycleAction = event.target.value || "全部";
+    state.tablePage.lifecycleRecords = 1;
+    state.selectedLifecycleIds.clear();
+    render();
+    return;
+  }
+  if (event.target.dataset.filter) {
+    state.filters[event.target.dataset.filter] = event.target.value;
+    state.tablePage[state.page] = 1;
+    state.selectedLifecycleIds.clear();
+    render();
+  }
+});
+
+document.addEventListener("input", (event) => {
+  if (!event.target.dataset.filter || event.target.dataset.filter === "actionType") return;
+  state.filters[event.target.dataset.filter] = event.target.value;
+  state.tablePage[state.page] = 1;
+  state.selectedLifecycleIds.clear();
 });
 
 render();
