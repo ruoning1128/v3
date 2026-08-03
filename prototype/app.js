@@ -270,6 +270,10 @@ const lifecycleFields = [
   "操作人",
   "客户ID",
   "客户名称",
+  "托管状态",
+  "托管状态描述",
+  "托管企微账号",
+  "企微姓名",
   "资源编号",
   "设备ID",
   "设备来源",
@@ -284,7 +288,7 @@ const lifecycleFields = [
   "更新后项目ID",
   "更新后项目名称",
   "云机订购时间",
-  "订购订单号",
+  "客户订单号",
   "T客户订购到期时间",
   "T+8续费保护截止日",
   "T+11禁用保护截止日",
@@ -307,37 +311,43 @@ const lifecycleMatrix = [
     action: "客户分配",
     source: "面客端/运管端",
     note: "客户分配后需要记录客户、项目、到期保护日期。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "客户回收",
     source: "面客端/运管端",
     note: "客户侧回收解除项目归属，更新后项目信息展示为空。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "客户订购",
     source: "面客端",
     note: "订购记录关注订单号、客户订购到期日和后续保护节点。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日", "订购订单号"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日", "客户订单号"],
   },
   {
     action: "运管替换",
     source: "运管端",
     note: "替换需保留旧机和新机信息，方便追溯旧机与新机。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "替换后资源编号", "替换后设备ID", "替换后设备分类", "替换后自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "替换后资源编号", "替换后设备ID", "替换后设备分类", "替换后自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "运管回收",
     source: "运管端",
     note: "运管回收保留客户归属、保护期日期和回收时的资源信息。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "到期回收",
     source: "系统",
     note: "禁用保护截止日后一天由系统自动回收。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+  },
+  {
+    action: "运营退定",
+    source: "运管端",
+    note: "运营侧主动退定客户云机，字段口径与到期回收保持一致，但操作时间不受保护期节点限制。",
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
 ];
 
@@ -375,7 +385,7 @@ const lifecycleRecords = [
       T客户订购到期时间: "2026-08-08",
       "T+8续费保护截止日": "2026-08-16",
       "T+11禁用保护截止日": "2026-08-19",
-      订购订单号: "870583189163237376",
+      客户订单号: "870583189163237376",
     },
   },
   {
@@ -474,6 +484,25 @@ const lifecycleRecords = [
       "T+11禁用保护截止日": "2026-08-03",
     },
   },
+  {
+    id: "TR-202607-032",
+    action: "运营退定",
+    stage: "运营退定完成",
+    fields: {
+      资源编号: "RS-WL-01061",
+      设备ID: "CM-202607-044",
+      操作人: "zhouyukang.7",
+      客户名称: "广西京东晴川电子商务有限公司",
+      变更时间: "2026-08-02 14:50",
+      操作来源: "运管端",
+      设备来源: "客户",
+      设备分类: "云手机",
+      自动化服务商: "微联",
+      T客户订购到期时间: "2026-09-18",
+      "T+8续费保护截止日": "2026-09-26",
+      "T+11禁用保护截止日": "2026-09-29",
+    },
+  },
 ];
 
 const moreLifecycleRecords = [
@@ -522,7 +551,7 @@ lifecycleRecords.push(...moreLifecycleRecords.map(([id, action, stage, resourceN
     T客户订购到期时间: customerExpiry,
     "T+8续费保护截止日": renewProtect,
     "T+11禁用保护截止日": disableProtect,
-    订购订单号: orderNo,
+    客户订单号: orderNo,
   }[field]]).filter(([field, value]) => lifecycleRule(action).required.includes(field) && value)),
 })));
 
@@ -531,10 +560,15 @@ lifecycleRecords.forEach(normalizeLifecycleRecord);
 function normalizeLifecycleRecord(record, index) {
   const fields = record.fields;
   const project = lifecycleProjectSnapshot(record, index);
+  const wecom = lifecycleWecomSnapshot(index);
   fields.资源编号 = lifecycleResourceNo(index);
   fields.设备ID = lifecycleDeviceId(index);
   fields.操作人 = lifecycleOperator(record, index);
   fields.客户ID = fields.客户名称 ? lifecycleCustomerId(fields.客户名称) : "";
+  fields.托管状态 = fields.客户名称 ? wecom.status : "";
+  fields.托管状态描述 = fields.客户名称 ? wecom.description : "";
+  fields.托管企微账号 = fields.客户名称 ? wecom.account : "";
+  fields.企微姓名 = fields.客户名称 ? wecom.name : "";
   fields.更新前项目ID = project.beforeId;
   fields.更新前项目名称 = project.beforeName;
   fields.更新后项目ID = project.afterId;
@@ -543,7 +577,7 @@ function normalizeLifecycleRecord(record, index) {
   fields.替换后设备ID = record.action === "运管替换" ? lifecycleDeviceId(index + 31) : "";
   fields.替换后设备分类 = record.action === "运管替换" ? alternateDeviceCategory(index) : "";
   fields.替换后自动化服务商 = record.action === "运管替换" ? alternateProvider(index) : "";
-  if (fields.订购订单号) fields.订购订单号 = lifecycleOrderNo(index);
+  if (fields.客户订单号) fields.客户订单号 = lifecycleOrderNo(index);
 }
 
 function lifecycleResourceNo(index) {
@@ -598,6 +632,20 @@ function alternateProvider(index) {
   return ["微联", "有机云", "有态度"][index % 3];
 }
 
+function lifecycleWecomSnapshot(index) {
+  const snapshots = [
+    ["在线", "上线", "18651068870", "赵寒"],
+    ["离线", "账号于2026-08-02 14:50:56在机器VGZA10250052040_00下线，原因[01]：退登", "18360233279", "刘浩文"],
+    ["在线", "上线", "GanLu", "甘露"],
+    ["离线", "账号于2026-06-24 10:18:03在机器VHLC10201022001_02下线，原因[02]：设备异常", "ZuoShuaiKang", "左帅康"],
+    ["在线", "上线", "DongZhengYu", "董政昱"],
+    ["在线", "上线", "15152422455", "张亚运"],
+    ["离线", "账号于2026-07-28 18:12:44在机器VHLC10201021992_01下线，原因[03]：网络断开", "WeiDianYun通知助手", "微电云通知助手"],
+  ];
+  const [status, description, account, name] = snapshots[index % snapshots.length];
+  return { status, description, account, name };
+}
+
 function lifecycleOrderNo(index) {
   const orderNos = [
     "870583189163237376",
@@ -638,7 +686,7 @@ function lifecycleCustomerId(customerName) {
 
 function lifecycleProjectSnapshot(record, index) {
   const fields = record.fields;
-  if (record.action !== "客户分配" && record.action !== "客户回收" && record.action !== "到期回收") {
+  if (record.action !== "客户分配" && record.action !== "客户回收" && record.action !== "到期回收" && record.action !== "运营退定") {
     return { beforeId: "", beforeName: "", afterId: "", afterName: "" };
   }
 
@@ -652,8 +700,8 @@ function lifecycleProjectSnapshot(record, index) {
   const seed = projectSeeds[index % projectSeeds.length];
   const beforeId = seed[0];
   const beforeName = seed[1];
-  const afterId = record.action === "客户回收" || record.action === "到期回收" ? "" : seed[2];
-  const afterName = record.action === "客户回收" || record.action === "到期回收" ? "" : seed[3];
+  const afterId = ["客户回收", "到期回收", "运营退定"].includes(record.action) ? "" : seed[2];
+  const afterName = ["客户回收", "到期回收", "运营退定"].includes(record.action) ? "" : seed[3];
   return { beforeId, beforeName, afterId, afterName };
 }
 
@@ -1388,10 +1436,16 @@ function fieldValue(record, field) {
 
 function renderLifecycleCell(record, field) {
   const value = fieldValue(record, field);
-  const truncatable = ["操作人", "客户名称", "更新前项目名称", "更新后项目名称"].includes(field);
+  if (field === "托管状态" && value !== "--") return wecomStatusTag(value);
+  const truncatable = ["操作人", "客户名称", "托管状态描述", "更新前项目名称", "更新后项目名称"].includes(field);
   if (field === "操作人" && isErpOperator(value)) return escapeHtml(value);
   if (!truncatable || value === "--" || value.length <= 10) return escapeHtml(value);
   return `<span class="truncated-cell" data-full-text="${escapeHtml(value)}">${escapeHtml(value.slice(0, 10))}...</span>`;
+}
+
+function wecomStatusTag(status) {
+  const className = status === "在线" ? "online" : "offline";
+  return `<span class="wecom-status ${className}">${escapeHtml(status)}</span>`;
 }
 
 function isErpOperator(value) {
@@ -1416,7 +1470,7 @@ function actionTag(action) {
 }
 
 function actionClass(action) {
-  return action === "到期回收" ? "expiry-recycle" : "support";
+  return ["到期回收", "运营退定"].includes(action) ? "expiry-recycle" : "support";
 }
 
 function lifecycleRule(action) {
