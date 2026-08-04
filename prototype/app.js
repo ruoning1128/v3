@@ -283,10 +283,8 @@ const lifecycleFields = [
   "替换后设备ID",
   "替换后设备分类",
   "替换后自动化服务商",
-  "更新前项目ID",
-  "更新前项目名称",
-  "更新后项目ID",
-  "更新后项目名称",
+  "项目ID",
+  "项目名称",
   "云机订购时间",
   "客户订单号",
   "T客户订购到期时间",
@@ -311,13 +309,13 @@ const lifecycleMatrix = [
     action: "客户分配",
     source: "面客端/运管端",
     note: "客户分配后需要记录客户、项目、到期保护日期。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "项目ID", "项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "客户回收",
     source: "面客端/运管端",
     note: "客户侧回收解除项目归属，更新后项目信息展示为空。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "更新后项目ID", "更新后项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "项目ID", "项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "客户订购",
@@ -335,13 +333,13 @@ const lifecycleMatrix = [
     action: "运管回收",
     source: "运管端",
     note: "运管回收保留客户归属、保护期日期和回收时的资源信息。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "项目ID", "项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "到期回收",
     source: "系统",
     note: "禁用保护截止日后一天由系统自动回收。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "项目ID", "项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "运营退定",
@@ -402,7 +400,7 @@ const lifecycleRecords = [
       设备来源: "客户",
       设备分类: "云手机",
       自动化服务商: "微联",
-      更新后项目名称: "品类项目演示0710授权",
+      项目名称: "品类项目演示0710授权",
       T客户订购到期时间: "2026-09-30",
       "T+8续费保护截止日": "2026-10-08",
       "T+11禁用保护截止日": "2026-10-11",
@@ -543,7 +541,7 @@ lifecycleRecords.push(...moreLifecycleRecords.map(([id, action, stage, resourceN
     设备分类: deviceCategory,
     自动化服务商: provider,
     云机订购时间: orderTime,
-    更新后项目名称: projectName,
+    项目名称: projectName,
     T客户订购到期时间: customerExpiry,
     "T+8续费保护截止日": renewProtect,
     "T+11禁用保护截止日": disableProtect,
@@ -565,10 +563,8 @@ function normalizeLifecycleRecord(record, index) {
   fields.托管状态描述 = record.action !== "运营采购" ? wecom.description : "";
   fields.托管企微账号 = record.action !== "运营采购" ? wecom.account : "";
   fields.企微姓名 = record.action !== "运营采购" ? wecom.name : "";
-  fields.更新前项目ID = project.beforeId;
-  fields.更新前项目名称 = project.beforeName;
-  fields.更新后项目ID = project.afterId;
-  fields.更新后项目名称 = project.afterName;
+  fields.项目ID = project.id;
+  fields.项目名称 = project.name;
   fields.替换后资源编号 = record.action === "运管替换" ? lifecycleResourceNo(index + 31) : "";
   fields.替换后设备ID = record.action === "运管替换" ? lifecycleDeviceId(index + 31) : "";
   fields.替换后设备分类 = record.action === "运管替换" ? alternateDeviceCategory(index) : "";
@@ -689,7 +685,7 @@ function lifecycleCustomerId(customerName) {
 function lifecycleProjectSnapshot(record, index) {
   const fields = record.fields;
   if (record.action !== "客户分配" && record.action !== "客户回收" && record.action !== "运管回收" && record.action !== "到期回收") {
-    return { beforeId: "", beforeName: "", afterId: "", afterName: "" };
+    return { id: "", name: "" };
   }
 
   const projectSeeds = [
@@ -700,11 +696,11 @@ function lifecycleProjectSnapshot(record, index) {
     ["P00025341", "演示测试项目-品牌管理", "P00026058", "品类项目演示0710客户验证"],
   ];
   const seed = projectSeeds[index % projectSeeds.length];
-  const beforeId = seed[0];
-  const beforeName = seed[1];
-  const afterId = ["客户回收", "运管回收", "到期回收"].includes(record.action) ? "" : seed[2];
-  const afterName = ["客户回收", "运管回收", "到期回收"].includes(record.action) ? "" : seed[3];
-  return { beforeId, beforeName, afterId, afterName };
+  const isRecycleAction = ["客户回收", "运管回收", "到期回收"].includes(record.action);
+  return {
+    id: isRecycleAction ? seed[0] : seed[2],
+    name: isRecycleAction ? seed[1] : seed[3],
+  };
 }
 
 function logSeed(object, action, operator, before, after, reason, result) {
@@ -923,8 +919,8 @@ function getFilteredLifecycleRecords() {
     if (filters.deviceId && !String(fields.设备ID || "").includes(filters.deviceId)) return false;
     if (filters.customerId && !String(fields.客户ID || "").includes(filters.customerId)) return false;
     if (filters.customer && !String(fields.客户名称 || "").includes(filters.customer)) return false;
-    if (filters.projectId && ![fields.更新前项目ID, fields.更新后项目ID].some((value) => String(value || "").includes(filters.projectId))) return false;
-    if (filters.projectName && ![fields.更新前项目名称, fields.更新后项目名称].some((value) => String(value || "").includes(filters.projectName))) return false;
+    if (filters.projectId && !String(fields.项目ID || "").includes(filters.projectId)) return false;
+    if (filters.projectName && !String(fields.项目名称 || "").includes(filters.projectName)) return false;
     if (filters.source && fields.操作来源 !== filters.source) return false;
     if (filters.operator && !String(fields.操作人 || "").includes(filters.operator)) return false;
     const date = String(fields.变更时间 || "").slice(0, 10);
@@ -1439,7 +1435,7 @@ function fieldValue(record, field) {
 function renderLifecycleCell(record, field) {
   const value = fieldValue(record, field);
   if (field === "托管状态" && value !== "--") return wecomStatusTag(value);
-  const truncatable = ["操作人", "客户名称", "托管状态描述", "更新前项目名称", "更新后项目名称"].includes(field);
+  const truncatable = ["操作人", "客户名称", "托管状态描述", "项目名称"].includes(field);
   if (field === "操作人" && isErpOperator(value)) return escapeHtml(value);
   if (!truncatable || value === "--" || value.length <= 10) return escapeHtml(value);
   return `<span class="truncated-cell" data-full-text="${escapeHtml(value)}">${escapeHtml(value.slice(0, 10))}...</span>`;

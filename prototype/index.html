@@ -4,6 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>微电云运管平台 - 云机管理原型</title>
+    <!-- prototype-meta
+      version: 1.1.0
+      last-modified: 2026-08-04
+      last-modified-by: Codex
+      key-features:
+        - 云机流转查询单页交互
+        - 操作类型筛选、日期范围筛选、客户和项目条件查询
+        - 表格横向拖动、分页、批量导出选择
+        - 操作类型弱色状态标签
+        - 托管企微账号状态展示与可复制悬浮提示
+        - 项目ID、项目名称合并列展示
+      prd-mapping:
+        page-role: "云机流转查询"
+        user-roles: ["运营管理员"]
+        state-machine: ["运营采购", "客户分配", "客户回收", "客户订购", "运管替换", "运管回收", "到期回收", "运营退定"]
+        key-flows:
+          - "选择操作类型和日期范围"
+          - "输入客户、项目或设备条件"
+          - "查看流转记录与字段填充结果"
+          - "按需批量勾选并导出记录"
+        business-entities: ["云机资源", "客户", "项目", "企微账号", "客户订单"]
+        api-touch-points: []
+      changelog:
+        - 2026-08-04 v1.1.0: 项目前后变更列合并为项目ID、项目名称
+    -->
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles.css" />
   </head>

@@ -1190,7 +1190,7 @@ button {
 }
 
 .lifecycle-table table {
-  min-width: 4400px;
+  min-width: 4100px;
 }
 
 .lifecycle-table th {
@@ -1202,16 +1202,15 @@ button {
 .lifecycle-table th:nth-child(12),
 .lifecycle-table th:nth-child(16),
 .lifecycle-table th:nth-child(17),
+.lifecycle-table th:nth-child(22),
 .lifecycle-table th:nth-child(24),
-.lifecycle-table th:nth-child(26),
-.lifecycle-table th:nth-child(27),
-.lifecycle-table th:nth-child(28) {
+.lifecycle-table th:nth-child(25),
+.lifecycle-table th:nth-child(26) {
   min-width: 170px;
 }
 
 .lifecycle-table th:nth-child(4),
-.lifecycle-table th:nth-child(19),
-.lifecycle-table th:nth-child(25) {
+.lifecycle-table th:nth-child(23) {
   min-width: 180px;
 }
 
@@ -1221,14 +1220,12 @@ button {
 }
 
 .lifecycle-table th:nth-child(6),
-.lifecycle-table th:nth-child(21),
-.lifecycle-table th:nth-child(23) {
+.lifecycle-table th:nth-child(21) {
   min-width: 190px;
 }
 
 .lifecycle-table th:nth-child(18),
-.lifecycle-table th:nth-child(20),
-.lifecycle-table th:nth-child(22) {
+.lifecycle-table th:nth-child(20) {
   min-width: 150px;
 }
 
