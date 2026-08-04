@@ -335,7 +335,7 @@ const lifecycleMatrix = [
     action: "运管回收",
     source: "运管端",
     note: "运管回收保留客户归属、保护期日期和回收时的资源信息。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
   },
   {
     action: "到期回收",
@@ -346,8 +346,8 @@ const lifecycleMatrix = [
   {
     action: "运营退定",
     source: "运管端",
-    note: "运营侧主动退定客户云机，字段口径与到期回收保持一致，但操作时间不受保护期节点限制。",
-    required: ["资源编号", "设备ID", "操作人", "客户ID", "客户名称", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "变更时间", "操作来源", "设备来源", "设备分类", "自动化服务商", "更新前项目ID", "更新前项目名称", "T客户订购到期时间", "T+8续费保护截止日", "T+11禁用保护截止日"],
+    note: "运营侧主动退定客户云机，仅保留本次退定动作的基础操作与资源信息。",
+    required: ["变更时间", "操作来源", "操作人", "资源编号", "设备ID", "设备来源", "设备分类", "自动化服务商"],
   },
 ];
 
@@ -492,15 +492,11 @@ const lifecycleRecords = [
       资源编号: "RS-WL-01061",
       设备ID: "CM-202607-044",
       操作人: "zhouyukang.7",
-      客户名称: "广西京东晴川电子商务有限公司",
       变更时间: "2026-08-02 14:50",
       操作来源: "运管端",
       设备来源: "客户",
       设备分类: "云手机",
       自动化服务商: "微联",
-      T客户订购到期时间: "2026-09-18",
-      "T+8续费保护截止日": "2026-09-26",
-      "T+11禁用保护截止日": "2026-09-29",
     },
   },
 ];
@@ -578,6 +574,12 @@ function normalizeLifecycleRecord(record, index) {
   fields.替换后设备分类 = record.action === "运管替换" ? alternateDeviceCategory(index) : "";
   fields.替换后自动化服务商 = record.action === "运管替换" ? alternateProvider(index) : "";
   if (fields.客户订单号) fields.客户订单号 = lifecycleOrderNo(index);
+  if (record.action === "运营退定") {
+    const allowedFields = new Set(lifecycleRule(record.action).required);
+    lifecycleFields.forEach((field) => {
+      if (!allowedFields.has(field)) fields[field] = "";
+    });
+  }
 }
 
 function lifecycleResourceNo(index) {
@@ -686,7 +688,7 @@ function lifecycleCustomerId(customerName) {
 
 function lifecycleProjectSnapshot(record, index) {
   const fields = record.fields;
-  if (record.action !== "客户分配" && record.action !== "客户回收" && record.action !== "到期回收" && record.action !== "运营退定") {
+  if (record.action !== "客户分配" && record.action !== "客户回收" && record.action !== "运管回收" && record.action !== "到期回收") {
     return { beforeId: "", beforeName: "", afterId: "", afterName: "" };
   }
 
@@ -700,8 +702,8 @@ function lifecycleProjectSnapshot(record, index) {
   const seed = projectSeeds[index % projectSeeds.length];
   const beforeId = seed[0];
   const beforeName = seed[1];
-  const afterId = ["客户回收", "到期回收", "运营退定"].includes(record.action) ? "" : seed[2];
-  const afterName = ["客户回收", "到期回收", "运营退定"].includes(record.action) ? "" : seed[3];
+  const afterId = ["客户回收", "运管回收", "到期回收"].includes(record.action) ? "" : seed[2];
+  const afterName = ["客户回收", "运管回收", "到期回收"].includes(record.action) ? "" : seed[3];
   return { beforeId, beforeName, afterId, afterName };
 }
 
