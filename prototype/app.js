@@ -346,8 +346,8 @@ const lifecycleMatrix = [
   {
     action: "运营退定",
     source: "运管端",
-    note: "运营侧主动退定客户云机，仅保留本次退定动作的基础操作与资源信息。",
-    required: ["变更时间", "操作来源", "操作人", "资源编号", "设备ID", "设备来源", "设备分类", "自动化服务商"],
+    note: "运营侧主动退定客户云机，保留基础操作、托管状态和资源信息。",
+    required: ["变更时间", "操作来源", "操作人", "托管状态", "托管状态描述", "托管企微账号", "企微姓名", "资源编号", "设备ID", "设备来源", "设备分类", "自动化服务商"],
   },
 ];
 
@@ -561,10 +561,10 @@ function normalizeLifecycleRecord(record, index) {
   fields.设备ID = lifecycleDeviceId(index);
   fields.操作人 = lifecycleOperator(record, index);
   fields.客户ID = fields.客户名称 ? lifecycleCustomerId(fields.客户名称) : "";
-  fields.托管状态 = fields.客户名称 ? wecom.status : "";
-  fields.托管状态描述 = fields.客户名称 ? wecom.description : "";
-  fields.托管企微账号 = fields.客户名称 ? wecom.account : "";
-  fields.企微姓名 = fields.客户名称 ? wecom.name : "";
+  fields.托管状态 = record.action !== "运营采购" ? wecom.status : "";
+  fields.托管状态描述 = record.action !== "运营采购" ? wecom.description : "";
+  fields.托管企微账号 = record.action !== "运营采购" ? wecom.account : "";
+  fields.企微姓名 = record.action !== "运营采购" ? wecom.name : "";
   fields.更新前项目ID = project.beforeId;
   fields.更新前项目名称 = project.beforeName;
   fields.更新后项目ID = project.afterId;
