@@ -1198,8 +1198,7 @@ button {
 }
 
 .lifecycle-table th:nth-child(2),
-.lifecycle-table th:nth-child(11),
-.lifecycle-table th:nth-child(12),
+.lifecycle-table th:nth-child(7),
 .lifecycle-table th:nth-child(16),
 .lifecycle-table th:nth-child(17),
 .lifecycle-table th:nth-child(22),
@@ -1210,12 +1209,14 @@ button {
 }
 
 .lifecycle-table th:nth-child(4),
+.lifecycle-table th:nth-child(9),
 .lifecycle-table th:nth-child(23) {
   min-width: 180px;
 }
 
 .lifecycle-table th:nth-child(5),
-.lifecycle-table th:nth-child(7) {
+.lifecycle-table th:nth-child(10),
+.lifecycle-table th:nth-child(12) {
   min-width: 118px;
 }
 
@@ -1230,18 +1231,17 @@ button {
 }
 
 .lifecycle-table th:nth-child(3),
-.lifecycle-table th:nth-child(10),
-.lifecycle-table th:nth-child(13),
-.lifecycle-table th:nth-child(14) {
+.lifecycle-table th:nth-child(8),
+.lifecycle-table th:nth-child(15) {
   min-width: 132px;
 }
 
-.lifecycle-table th:nth-child(8) {
+.lifecycle-table th:nth-child(13) {
   min-width: 240px;
 }
 
-.lifecycle-table th:nth-child(9),
-.lifecycle-table th:nth-child(15) {
+.lifecycle-table th:nth-child(14),
+.lifecycle-table th:nth-child(19) {
   min-width: 160px;
 }
 
